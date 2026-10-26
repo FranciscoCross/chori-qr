@@ -538,18 +538,22 @@ class Handler(BaseHTTPRequestHandler):
         if 7 <= len(usuario) <= 8:
             p = db.execute("select * from personas where dni = ?", (usuario.zfill(8),)).fetchone()
 
-        valido = False
-        if p is not None:
-            if p["clave_hash"]:
-                valido = verificar_clave(clave, p["clave_hash"])
-            else:
-                # Primer ingreso: la clave inicial es el DNI.
-                valido = solo_digitos(clave).zfill(8) == p["dni"]
+        if p is None:
+            # Se avisa que la cuenta no existe (pedido del organizador); no suma intentos fallidos.
+            self.auditar("LOGIN", dni=dni_log, resultado="dni_inexistente")
+            if not 7 <= len(usuario) <= 8:
+                raise ErrorApi(400, "Ingrese su DNI sin puntos (7 u 8 números).")
+            raise ErrorApi(404, "Cuenta inexistente: no hay ninguna cuenta con ese DNI. Puede crearla con «Crear cuenta».")
+
+        if p["clave_hash"]:
+            valido = verificar_clave(clave, p["clave_hash"])
+        else:
+            # Primer ingreso: la clave inicial es el DNI.
+            valido = solo_digitos(clave).zfill(8) == p["dni"]
         if not valido:
-            motivo = "dni_inexistente" if p is None else (
-                "clave_incorrecta" if p["clave_hash"] else "clave_inicial_incorrecta")
+            motivo = "clave_incorrecta" if p["clave_hash"] else "clave_inicial_incorrecta"
             try:
-                registrar_fallo(clave_bloqueo, "Usuario o contraseña incorrectos.")
+                registrar_fallo(clave_bloqueo, "Contraseña incorrecta.")
             except ErrorApi as e:
                 self.auditar("LOGIN", dni=dni_log, resultado=motivo + ("+bloqueo" if e.estado == 429 else ""))
                 raise

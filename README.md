@@ -26,6 +26,7 @@ evento: bebidas, entradas a un buffet, kits, etc.
 
 - Ingreso con DNI. Las personas precargadas entran la primera vez con el DNI
   como usuario y contraseña, y la app les pide elegir una contraseña propia.
+  Si el DNI no tiene cuenta, lo dice ("Cuenta inexistente") y sugiere crearla.
 - Muestra el QR personal y cuántos choris le quedan.
 - **Crear cuenta:** quien no estaba en la lista se registra con su DNI y una
   contraseña, y sube el comprobante de pago (foto o PDF, hasta 8 MB). Un
