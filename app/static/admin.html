@@ -177,6 +177,18 @@
     <label class="filtro"><input type="checkbox" id="solo-sin-dni"> Mostrar solo personas sin DNI</label>
     <div class="lista" id="lista"></div>
 
+    <details class="registro" id="entregas">
+      <summary>Entregas</summary>
+      <div class="cuerpo">
+        <div class="barra">
+          <label for="en-texto" class="sr">Filtrar por nombre o DNI</label>
+          <input id="en-texto" placeholder="Nombre o DNI" autocomplete="off">
+        </div>
+        <p class="info" id="en-info"></p>
+        <div id="l-entregas"></div>
+      </div>
+    </details>
+
     <details class="registro" id="registro">
       <summary>Registro de accesos</summary>
       <div class="cuerpo">
@@ -399,7 +411,49 @@ async function cargarBloqueos() {
 setInterval(() => {
   if (!$("v-panel").classList.contains("oculto") && $("f-persona").classList.contains("oculto")) cargar();
   if ($("registro").open) cargarRegistro();
+  if ($("entregas").open) cargarEntregas();
 }, 30000);
+
+async function cargarEntregas() {
+  let datos;
+  try {
+    datos = await api("/api/admin/entregas", { texto: $("en-texto").value });
+  } catch (e) {
+    if (e.estado === 401) mostrar("pin"); else $("en-info").textContent = e.message;
+    return;
+  }
+  const filtro = $("en-texto").value.trim();
+  $("en-info").textContent = filtro
+    ? `${datos.entregas.length} movimiento${datos.entregas.length === 1 ? "" : "s"} para "${filtro}".`
+    : `${datos.entregados} chori${datos.entregados === 1 ? "" : "s"} entregado${datos.entregados === 1 ? "" : "s"} en total. Más recientes primero.`;
+  const lista = $("l-entregas");
+  lista.innerHTML = "";
+  if (!datos.entregas.length) lista.innerHTML = `<p class="info">Todavía no hay entregas.</p>`;
+  for (const en of datos.entregas) {
+    const fila = document.createElement("div");
+    fila.className = "ev";
+    const arriba = document.createElement("div");
+    arriba.className = "arriba";
+    const tipo = document.createElement("span");
+    tipo.className = "tipo";
+    tipo.textContent = en.tipo === "entrega" ? "Retiró 1 chori" : "Entrega deshecha";
+    const hora = document.createElement("span");
+    hora.textContent = en.hora;
+    arriba.append(tipo, hora);
+    const quien = document.createElement("div");
+    quien.className = "quien";
+    quien.textContent = en.dni ? `${en.nombre} · DNI ${formatoDni(en.dni)}` : en.nombre;
+    const res = document.createElement("div");
+    res.className = "res " + (en.tipo === "entrega" ? "bien" : "mal");
+    res.textContent = `Celular: ${en.dispositivo || "sin nombre"}`;
+    fila.append(arriba, quien, res);
+    lista.appendChild(fila);
+  }
+}
+
+$("entregas").addEventListener("toggle", () => { if ($("entregas").open) cargarEntregas(); });
+let tEntregas;
+$("en-texto").addEventListener("input", () => { clearTimeout(tEntregas); tEntregas = setTimeout(cargarEntregas, 300); });
 
 const EVENTOS = {
   LOGIN: "Ingreso", CAMBIO_CLAVE: "Cambio de contraseña", LOGIN_ASADOR: "PIN asador", LOGIN_ADMIN: "PIN admin",

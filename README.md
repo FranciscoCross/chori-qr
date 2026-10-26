@@ -61,6 +61,8 @@ evento: bebidas, entradas a un buffet, kits, etc.
   se subió antes (se compara el hash SHA-256), y botones para aprobar o rechazar.
 - Agregar personas, completar el DNI, cambiar cantidades y resetear contraseñas.
 - Lista de bloqueados con botón para desbloquear.
+- Entregas: quién retiró cada chori, a qué hora y desde qué celular, con filtro
+  por nombre o DNI. Las entregas deshechas también quedan registradas.
 - Registro de accesos: cada ingreso, cambio de contraseña y acción del admin, con
   el DNI, el resultado y la IP. Nunca guarda contraseñas ni PIN.
 

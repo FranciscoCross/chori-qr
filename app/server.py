@@ -17,6 +17,7 @@ Variables de entorno:
                    host (localhost) funcionan /, /staff y /admin.
 """
 
+import calendar
 import csv
 import hashlib
 import hmac
@@ -477,6 +478,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/admin/bloqueos": self.api_admin_bloqueos,
             "/api/admin/desbloquear": self.api_admin_desbloquear,
             "/api/admin/auditoria": self.api_admin_auditoria,
+            "/api/admin/entregas": self.api_admin_entregas,
             "/api/intercambio/estado": self.api_intercambio_estado,
             "/api/intercambio/pedir": self.api_pedir,
             "/api/intercambio/cancelar-pedido": self.api_cancelar_pedido,
@@ -1118,6 +1120,25 @@ class Handler(BaseHTTPRequestHandler):
             {"hora": time.strftime("%d/%m %H:%M:%S", time.localtime(f["momento"])), "evento": f["evento"],
              "dni": f["dni"], "nombre": f["nombre"], "resultado": f["resultado"], "detalle": f["detalle"],
              "ip": f["ip"]} for f in filas]})
+
+    def api_admin_entregas(self):
+        """Entregas del asador, más nuevas primero. Filtro: texto (nombre o DNI, parcial)."""
+        self.requiere_staff(2)
+        texto = " ".join(str(self.leer_json().get("texto") or "").split())
+        donde, args = "", []
+        if texto:
+            donde = "where p.nombre like ? or p.dni like ?"
+            args = [f"%{texto}%", f"%{solo_digitos(texto) or texto}%"]
+        filas = db.execute(
+            "select e.*, p.nombre, p.dni from entregas e join personas p on p.id = e.persona_id "
+            f"{donde} order by e.id desc limit 300", args).fetchall()
+        neto = db.execute(
+            "select coalesce(sum(case tipo when 'entrega' then 1 else -1 end), 0) from entregas").fetchone()[0]
+        # creado_en es UTC (datetime('now') de SQLite); se muestra en la hora local del servidor.
+        hora = lambda s: time.strftime("%d/%m %H:%M:%S", time.localtime(calendar.timegm(time.strptime(s, "%Y-%m-%d %H:%M:%S"))))
+        self.json(200, {"entregados": neto, "entregas": [
+            {"hora": hora(f["creado_en"]), "tipo": f["tipo"], "nombre": f["nombre"], "dni": f["dni"],
+             "dispositivo": f["dispositivo"]} for f in filas]})
 
     def api_admin_desbloquear(self):
         self.requiere_staff(2)
