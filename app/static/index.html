@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f1410">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<title>Mis choris</title>
+<style>
+  :root {
+    --bg: #1f1410; --grilla: #2a1b14; --panel: #3a2418; --tinta: #0d0806;
+    --texto: #f6e7c8; --suave: #d8c6a4; --tenue: #b8a585; --amarillo: #ffd23f;
+    --acento: #ffb02e; --acento-sombra: #c27a12;
+    --ok: #5bd16b; --ok-sombra: #2f9a3f; --ok-bg: #10331a; --ok-texto: #b9f5c1;
+    --mal: #ff6b4a; --mal-bg: #3d0f0c; --mal-texto: #ffc2b5; --error: #ff8a80;
+    --pixel: "Press Start 2P", ui-monospace, monospace;
+    --cuerpo: "VT323", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background-color: var(--bg); color: var(--texto); font: 23px/1.3 var(--cuerpo);
+    background-image: linear-gradient(var(--grilla) 2px, transparent 2px), linear-gradient(90deg, var(--grilla) 2px, transparent 2px);
+    background-size: 24px 24px; -webkit-font-smoothing: none; }
+  h1, h2, h3 { font-family: var(--pixel); font-weight: 400; line-height: 1.6; }
+  h1 { font-size: 15px; color: var(--amarillo); text-shadow: 2px 2px 0 #000; display: flex; align-items: center; gap: 12px; }
+  .ico { flex: none; image-rendering: pixelated; vertical-align: middle; }
+  .oculto { display: none !important; }
+  label { display: block; font-family: var(--pixel); font-size: 10px; color: var(--amarillo); margin-bottom: 8px; }
+  input { font: 26px var(--cuerpo); width: 100%; padding: 12px; border: 4px solid var(--tinta); border-radius: 0;
+    background: var(--bg); color: var(--texto); box-shadow: inset 4px 4px 0 #120b08; outline: none; margin-bottom: 14px; }
+  input:focus { border-color: var(--acento); }
+  input::placeholder { color: #8f7a5c; }
+  button { font: 11px/1.6 var(--pixel); text-transform: uppercase; width: 100%; padding: 14px 10px; cursor: pointer;
+    border: 4px solid var(--tinta); border-radius: 0; background: var(--panel); color: var(--texto);
+    box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), 4px 4px 0 var(--tinta); }
+  button:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), 2px 2px 0 var(--tinta); }
+  button.primario { background: var(--acento); color: var(--bg); box-shadow: inset -4px -4px 0 var(--acento-sombra), 4px 4px 0 var(--tinta); }
+  button.link, button.secundario, button.peligro { background: none; border: 0; box-shadow: none; width: auto;
+    font-size: 10px; color: var(--tenue); text-decoration: underline; text-underline-offset: 4px; padding: 12px 4px; }
+  button.peligro { color: var(--error); }
+  button:disabled { opacity: .45; cursor: not-allowed; box-shadow: inset -4px -4px 0 rgba(0,0,0,.35); }
+  .error { color: var(--error); min-height: 1.4em; margin: 0 0 10px; }
+
+  main { max-width: 420px; margin: 0 auto; padding: 28px 20px calc(28px + env(safe-area-inset-bottom)); }
+  #v-login h1, #v-cambiar h1 { flex-direction: column; font-size: 20px; color: var(--acento); text-shadow: 3px 3px 0 #000; margin: 24px 0 12px; }
+  #v-login h1 .ico { width: 128px; height: 64px; }
+  #v-cambiar h1 { font-size: 14px; }
+  #v-qr h1 { font-size: 13px; color: var(--texto); margin: 0 0 16px; }
+  p.sub { color: var(--suave); text-align: center; margin: 0 0 24px; }
+  form { background: var(--panel); border: 4px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta); padding: 20px; }
+  form button, .dos button:not(.gris), .item button { background: var(--acento); color: var(--bg);
+    box-shadow: inset -4px -4px 0 var(--acento-sombra), 4px 4px 0 var(--tinta); }
+  .qr { background: var(--texto); padding: 18px; border: 4px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta);
+    display: flex; justify-content: center; margin: 0 0 20px; }
+  .qr img, .qr canvas { width: 100%; max-width: 300px; height: auto; image-rendering: pixelated; }
+  .saldo { background: var(--panel); border: 4px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta); padding: 16px;
+    text-align: center; color: var(--suave); }
+  .saldo b { display: block; font: 40px/1.3 var(--pixel); color: var(--acento); text-shadow: 4px 4px 0 #000; margin-bottom: 8px; }
+  .saldo.cero b { color: var(--tenue); }
+  .ayuda { color: var(--tenue); font-size: 21px; text-align: center; }
+  .intercambio { margin-top: 28px; padding-top: 24px; background: repeating-linear-gradient(90deg, #5a3a26 0 8px, transparent 8px 16px) top / 100% 4px no-repeat; }
+  .intercambio h2 { font-size: 12px; color: var(--amarillo); margin: 0 0 14px; }
+  .intercambio > .ayuda:first-of-type { text-align: left; margin: -6px 0 14px; }
+  .intercambio .codigos { margin-top: 0; }
+  .intercambio h3 { font-size: 10px; color: var(--suave); margin: 22px 0 10px; }
+  .dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .dos button { font-size: 10px; padding: 14px 6px; }
+  .regalo { background: var(--ok-bg); border: 4px solid var(--ok); box-shadow: 4px 4px 0 var(--tinta); color: var(--ok-texto);
+    padding: 12px; margin-bottom: 14px; text-align: center; font-size: 24px; }
+  .item { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--panel);
+    border: 4px solid var(--tinta); padding: 10px 12px; margin-bottom: 8px; font-size: 25px; }
+  .item button { width: auto; font-size: 10px; padding: 12px 10px; box-shadow: inset -3px -3px 0 var(--acento-sombra); }
+  .item .tuyo { font-family: var(--pixel); font-size: 10px; color: var(--tenue); text-transform: uppercase; }
+  .vacio { color: var(--tenue); font-size: 21px; margin: 0; }
+  #b-salir { display: block; margin: 24px auto 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .codigos { background: var(--panel); border: 4px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta); padding: 14px; margin-top: 22px; }
+  .codigos h3 { margin-top: 0 !important; }
+  .codigos h3 + .ayuda { text-align: left; margin: 0 0 12px; }
+  .linea { display: flex; gap: 10px; align-items: stretch; }
+  .linea input { margin: 0; min-width: 0; flex: 1; }
+  .linea input[type=number] { flex: 0 0 84px; text-align: center; }
+  .linea button { width: auto; flex: 1; }
+  .ticket { background: var(--bg); border: 4px dashed var(--acento); padding: 12px; margin-top: 12px; display: flex;
+    flex-direction: column; gap: 8px; align-items: center; text-align: center; }
+  .ticket .codigo { font: 24px/1.4 var(--pixel); color: var(--amarillo); letter-spacing: 3px; text-shadow: 3px 3px 0 #000; }
+  .ticket .det { color: var(--suave); }
+  .ticket .botones { display: flex; gap: 10px; width: 100%; }
+  .ticket .botones button { flex: 1; font-size: 10px; padding: 12px 6px; }
+  .estado-chip { font: 9px/1.8 var(--pixel); text-transform: uppercase; padding: 2px 6px; border: 2px solid; white-space: nowrap; }
+  .estado-chip.pendiente { color: var(--amarillo); border-color: var(--amarillo); }
+  .estado-chip.aprobado { color: var(--ok-texto); border-color: var(--ok); background: var(--ok-bg); }
+  .estado-chip.rechazado { color: var(--mal-texto); border-color: var(--mal); background: var(--mal-bg); }
+  .comp { border-top: 4px dotted #5a3a26; padding: 10px 0; display: flex; flex-direction: column; gap: 4px; }
+  .comp:first-child { border-top: 0; }
+  .comp .arriba { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .comp .motivo { color: var(--mal-texto); font-size: 20px; }
+  input[type=file] { font: 20px var(--cuerpo); padding: 10px; }
+  input[type=file]::file-selector-button { font: 10px var(--pixel); background: var(--acento); color: var(--bg);
+    border: 3px solid var(--tinta); padding: 10px; margin-right: 10px; cursor: pointer; }
+  .codigos h3 { font-size: 10px; color: var(--suave); margin: 0 0 10px; }
+  .codigos form { background: none; border: 0; box-shadow: none; padding: 0; }
+  .item.apilada { flex-direction: column; align-items: stretch; gap: 10px; }
+  .item.apilada .acciones-item button { flex: 1; }
+  .item .acciones-item { display: flex; gap: 8px; }
+  .item .info-item { display: flex; flex-direction: column; gap: 2px; }
+  .aviso-ok { color: var(--ok-texto); min-height: 1.4em; margin: 0 0 10px; }
+  #v-login .secundario, #v-registro .secundario { display: block; margin: 20px auto 0; font-size: 10px; }
+  .separador { height: 4px; margin: 16px 0; background: repeating-linear-gradient(90deg, #5a3a26 0 8px, transparent 8px 16px); }
+</style>
+</head>
+<body>
+<main>
+  <section id="v-login" class="oculto">
+    <h1><svg class="ico" width="40" height="20" viewBox="0 0 16 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="4" width="14" height="3" fill="#d9a05b"/><rect x="0" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="15" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="1" y="7" width="14" height="1" fill="#8a5a2b"/><rect x="2" y="2" width="12" height="3" fill="#b8432f"/><rect x="1" y="3" width="1" height="1" fill="#b8432f"/><rect x="14" y="3" width="1" height="1" fill="#b8432f"/><rect x="3" y="2" width="9" height="1" fill="#e0704f"/><rect x="3" y="3" width="2" height="1" fill="#ffd23f"/><rect x="7" y="3" width="2" height="1" fill="#ffd23f"/><rect x="11" y="3" width="2" height="1" fill="#ffd23f"/></svg> MIS CHORIS</h1>
+    <p class="sub">Ingrese con su DNI (sin puntos). Si compró antes del evento, la primera vez la contraseña también es su DNI.</p>
+    <form id="f-login">
+      <label for="usuario">DNI</label>
+      <input id="usuario" inputmode="numeric" autocomplete="username" required>
+      <label for="clave">Contraseña</label>
+      <input id="clave" type="password" autocomplete="current-password" required>
+      <p class="error" id="e-login"></p>
+      <button>Ingresar</button>
+    </form>
+    <button type="button" class="secundario" id="b-ir-registro">¿No tiene cuenta? Crear cuenta</button>
+  </section>
+
+  <section id="v-registro" class="oculto">
+    <h1>Crear cuenta</h1>
+    <p class="sub">Después de crearla, suba el comprobante de pago para que le asignen sus choris.</p>
+    <form id="f-registro">
+      <label for="r-nombre">Nombre y apellido</label>
+      <input id="r-nombre" autocomplete="name" maxlength="80" required>
+      <label for="r-dni">DNI (sin puntos)</label>
+      <input id="r-dni" inputmode="numeric" autocomplete="username" maxlength="10" required>
+      <label for="r-clave">Contraseña (mínimo 6 caracteres)</label>
+      <input id="r-clave" type="password" autocomplete="new-password" minlength="6" required>
+      <label for="r-repetir">Repetir contraseña</label>
+      <input id="r-repetir" type="password" autocomplete="new-password" minlength="6" required>
+      <p class="error" id="e-registro"></p>
+      <button>Crear cuenta</button>
+    </form>
+    <button type="button" class="secundario" id="b-ir-login">Ya tengo cuenta</button>
+  </section>
+
+  <section id="v-cambiar" class="oculto">
+    <h1>Hola, <span id="c-nombre"></span></h1>
+    <p class="sub">Antes de ver su QR, cree una contraseña nueva. No puede ser su DNI.</p>
+    <form id="f-cambiar">
+      <label for="nueva">Contraseña nueva (mínimo 6 caracteres)</label>
+      <input id="nueva" type="password" autocomplete="new-password" minlength="6" required>
+      <label for="repetir">Repetir contraseña</label>
+      <input id="repetir" type="password" autocomplete="new-password" minlength="6" required>
+      <p class="error" id="e-cambiar"></p>
+      <button>Guardar</button>
+    </form>
+  </section>
+
+  <section id="v-qr" class="oculto">
+    <h1 id="q-nombre"></h1>
+    <div class="qr" id="qr"></div>
+    <div class="saldo" id="saldo"></div>
+    <p class="ayuda">Muestre este QR en la parrilla. Puede sacarle una captura de pantalla.</p>
+
+    <section class="codigos" id="s-comprobantes">
+      <h3>Mis comprobantes</h3>
+      <p class="ayuda" id="c-ayuda"></p>
+      <form id="f-comprobante">
+        <label for="c-archivo">Comprobante (foto, captura o PDF)</label>
+        <input id="c-archivo" type="file" accept="image/*,application/pdf" required>
+        <label for="c-cant">¿Cuántos choris pagó?</label>
+        <div class="linea">
+          <input id="c-cant" type="number" min="1" max="50" value="1" inputmode="numeric" required>
+          <button class="primario" id="b-comprobante">Enviar</button>
+        </div>
+      </form>
+      <p class="error" id="e-comp"></p>
+      <p class="aviso-ok" id="ok-comp"></p>
+      <div id="l-comprobantes"></div>
+    </section>
+
+    <section class="intercambio">
+      <h2>Intercambio uno a uno</h2>
+      <div id="regalo" class="regalo oculto"></div>
+      <div class="codigos">
+        <h3>Transferir con código</h3>
+        <p class="ayuda">Para pasarle choris a alguien en particular. El código sirve una vez y vence a los 10 minutos.</p>
+        <div class="linea">
+          <label for="t-cant" class="sr">Cantidad de choris</label>
+          <input id="t-cant" type="number" min="1" value="1" inputmode="numeric">
+          <button id="b-transferir" class="primario">Generar código</button>
+        </div>
+        <div id="l-codigos"></div>
+        <div class="separador"></div>
+        <h3>Canjear código</h3>
+        <div class="linea">
+          <label for="c-codigo" class="sr">Código recibido</label>
+          <input id="c-codigo" placeholder="ABC-234" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="8">
+          <button id="b-canjear" class="primario">Canjear</button>
+        </div>
+        <p class="error" id="e-uno"></p>
+      </div>
+    </section>
+
+    <section class="intercambio">
+      <h2>Intercambio global</h2>
+      <p class="ayuda">Pedidos y donaciones abiertos a todos los participantes.</p>
+      <div class="dos">
+        <button id="b-pedir">Pedir un chori</button>
+        <button id="b-donar" class="gris">Donar un chori</button>
+      </div>
+      <p class="ayuda" id="i-ayuda"></p>
+      <p class="error" id="e-inter"></p>
+      <h3>Piden un chori</h3>
+      <div id="l-pedidos"></div>
+      <h3>Choris donados</h3>
+      <div id="l-ofertas"></div>
+    </section>
+
+    <button class="secundario" id="b-salir">Cerrar sesión</button>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let qrDibujado = null;
+let refresco = null;
+
+async function api(ruta, datos) {
+  const r = await fetch(ruta, datos === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos),
+  });
+  const cuerpo = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(cuerpo.error || "Error de conexión"); e.estado = r.status; throw e; }
+  return cuerpo;
+}
+
+function mostrar(vista) {
+  for (const v of ["v-login", "v-registro", "v-cambiar", "v-qr"]) $(v).classList.toggle("oculto", v !== vista);
+}
+
+async function cargar() {
+  try {
+    const yo = await api("/api/yo");
+    if (yo.debe_cambiar) {
+      $("c-nombre").textContent = yo.nombre.split(" ")[0];
+      mostrar("v-cambiar");
+      return;
+    }
+    $("q-nombre").textContent = yo.nombre;
+    if (qrDibujado !== yo.id) {
+      $("qr").innerHTML = "";
+      new QRCode($("qr"), { text: yo.id, width: 600, height: 600, correctLevel: QRCode.CorrectLevel.M });
+      qrDibujado = yo.id;
+    }
+    const s = $("saldo");
+    s.classList.toggle("cero", yo.restantes === 0);
+    s.innerHTML = yo.restantes > 0
+      ? `<b>${yo.restantes}</b> chori${yo.restantes === 1 ? "" : "s"} disponible${yo.restantes === 1 ? "" : "s"} de ${yo.total}`
+      : `<b>0</b> ${yo.total === 0 ? "Todavía no tiene choris. Suba su comprobante o canjee un código." : yo.total === 1 ? "Ya retiró su chori" : `Ya retiró sus ${yo.total} choris`}`;
+    mostrar("v-qr");
+    await Promise.all([cargarIntercambio(), cargarComprobantes()]);
+    if (!refresco) refresco = setInterval(cargar, 15000);
+  } catch (e) {
+    if (e.estado === 401) { clearInterval(refresco); refresco = null; mostrar("v-login"); }
+  }
+}
+
+function leerVisto() { try { return Number(localStorage.getItem("chori_regalo_visto")) || 0; } catch { return 0; } }
+function guardarVisto(id) { try { localStorage.setItem("chori_regalo_visto", String(id)); } catch {} }
+
+async function accion(ruta, datos, confirmar, errorId = "e-inter") {
+  if (confirmar && !confirm(confirmar)) return;
+  $(errorId).textContent = "";
+  try {
+    await api(ruta, datos || {});
+  } catch (e) {
+    $(errorId).textContent = e.message;
+  }
+  await cargar();
+}
+
+function fila(nombre, textoBoton, habilitado, alTocar, nota) {
+  const div = document.createElement("div");
+  div.className = "item";
+  const info = document.createElement("span");
+  info.className = "info-item";
+  const n = document.createElement("span");
+  n.textContent = nombre;
+  info.appendChild(n);
+  if (nota) {
+    const t = document.createElement("span");
+    t.className = "tuyo";
+    t.textContent = nota;
+    info.appendChild(t);
+  }
+  div.appendChild(info);
+  if (textoBoton) {
+    const b = document.createElement("button");
+    b.textContent = textoBoton;
+    b.disabled = !habilitado;
+    b.onclick = alTocar;
+    div.appendChild(b);
+  }
+  return div;
+}
+
+function filaBotones(nombre, nota, botones) {
+  const div = document.createElement("div");
+  div.className = "item apilada";
+  const info = document.createElement("span");
+  info.className = "info-item";
+  const n = document.createElement("span");
+  n.textContent = nombre;
+  const t = document.createElement("span");
+  t.className = "tuyo";
+  t.textContent = nota;
+  info.append(n, t);
+  const acciones = document.createElement("span");
+  acciones.className = "acciones-item";
+  for (const [texto, principal, alTocar] of botones) {
+    const b = document.createElement("button");
+    b.textContent = texto;
+    if (!principal) b.className = "gris";
+    b.onclick = alTocar;
+    acciones.appendChild(b);
+  }
+  div.append(info, acciones);
+  return div;
+}
+
+// ---------- registro ----------
+$("b-ir-registro").onclick = () => { $("e-registro").textContent = ""; mostrar("v-registro"); $("r-nombre").focus(); };
+$("b-ir-login").onclick = () => mostrar("v-login");
+$("f-registro").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("e-registro").textContent = "";
+  if ($("r-clave").value !== $("r-repetir").value) { $("e-registro").textContent = "Las contraseñas no coinciden."; return; }
+  const boton = ev.submitter; boton.disabled = true;
+  try {
+    await api("/api/registro", { nombre: $("r-nombre").value, dni: $("r-dni").value, clave: $("r-clave").value });
+    $("r-clave").value = $("r-repetir").value = "";
+    await cargar();
+  } catch (e) {
+    $("e-registro").textContent = e.message;
+  } finally { boton.disabled = false; }
+};
+
+// ---------- comprobantes ----------
+const ESTADOS_COMP = { pendiente: "en revisión", aprobado: "aprobado", rechazado: "rechazado" };
+
+async function cargarComprobantes() {
+  let datos;
+  try { datos = await api("/api/comprobantes/mios", {}); } catch { return; }
+  const precio = datos.precio.toLocaleString("es-AR");
+  $("c-ayuda").textContent = `Cada chori cuesta $${precio}. Suba el comprobante de su transferencia y un organizador lo revisa.`;
+  const lista = $("l-comprobantes");
+  lista.innerHTML = "";
+  for (const c of datos.comprobantes) {
+    const fila = document.createElement("div");
+    fila.className = "comp";
+    const arriba = document.createElement("div");
+    arriba.className = "arriba";
+    const txt = document.createElement("span");
+    txt.textContent = c.estado === "aprobado"
+      ? `${c.fecha} · ${c.aprobada} chori${c.aprobada === 1 ? "" : "s"} acreditado${c.aprobada === 1 ? "" : "s"}`
+      : `${c.fecha} · ${c.pedida} chori${c.pedida === 1 ? "" : "s"}`;
+    const chip = document.createElement("span");
+    chip.className = "estado-chip " + c.estado;
+    chip.textContent = ESTADOS_COMP[c.estado];
+    arriba.append(txt, chip);
+    fila.appendChild(arriba);
+    if (c.motivo && c.estado === "rechazado") {
+      const m = document.createElement("div");
+      m.className = "motivo";
+      m.textContent = c.motivo;
+      fila.appendChild(m);
+    }
+    lista.appendChild(fila);
+  }
+}
+
+// Achica fotos en el navegador (de ~4 MB a ~300 KB) para que la subida sea rápida.
+async function achicar(archivo) {
+  if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(archivo.type)) return archivo;
+  try {
+    const img = await createImageBitmap(archivo);
+    const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const lienzo = document.createElement("canvas");
+    lienzo.width = Math.round(img.width * escala);
+    lienzo.height = Math.round(img.height * escala);
+    lienzo.getContext("2d").drawImage(img, 0, 0, lienzo.width, lienzo.height);
+    const blob = await new Promise((ok) => lienzo.toBlob(ok, "image/jpeg", 0.85));
+    return blob && blob.size < archivo.size ? blob : archivo;
+  } catch {
+    return archivo;  // el navegador no pudo leerla (p. ej. HEIC fuera de Safari): se sube tal cual
+  }
+}
+
+$("f-comprobante").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("e-comp").textContent = $("ok-comp").textContent = "";
+  const archivo = $("c-archivo").files[0];
+  if (!archivo) return;
+  const boton = $("b-comprobante"); boton.disabled = true; boton.textContent = "Subiendo…";
+  try {
+    const cuerpo = await achicar(archivo);
+    if (cuerpo.size > 8 * 1024 * 1024) throw new Error("El archivo supera los 8 MB.");
+    const r = await fetch(`/api/comprobantes/subir?cantidad=${encodeURIComponent($("c-cant").value)}`,
+      { method: "POST", body: cuerpo });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(res.error || "No se pudo subir el comprobante.");
+    $("f-comprobante").reset();
+    $("ok-comp").textContent = "Comprobante enviado. Le avisamos acá cuando lo revisen.";
+    await cargarComprobantes();
+  } catch (e) {
+    $("e-comp").textContent = e.message;
+  } finally { boton.disabled = false; boton.textContent = "Enviar"; }
+};
+
+async function compartirCodigo(t) {
+  const texto = `Te paso ${t.cantidad} chori${t.cantidad === 1 ? "" : "s"}: canjea el código ${t.codigo} en ${location.origin} (vence en ${t.minutos} min).`;
+  try {
+    if (navigator.share) { await navigator.share({ text: texto }); return; }
+    await navigator.clipboard.writeText(texto);
+    $("e-uno").textContent = "Mensaje copiado. Péguelo en WhatsApp.";
+  } catch { /* el usuario canceló */ }
+}
+
+async function cargarIntercambio() {
+  let datos;
+  try { datos = await api("/api/intercambio/estado", {}); } catch { return; }
+  const tengo = datos.restantes > 0;
+  const miPedido = datos.pedidos.find((d) => d.mio);
+
+  // Aviso de regalo recibido
+  const ultimo = datos.recibidos[0];
+  if (ultimo && ultimo.id > leerVisto()) {
+    $("regalo").textContent = ultimo.origen === "codigo"
+      ? `¡${ultimo.de} le transfirió ${ultimo.cantidad} chori${ultimo.cantidad === 1 ? "" : "s"}!`
+      : `¡${ultimo.de} le regaló un chori!`;
+    $("regalo").classList.remove("oculto");
+    if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
+    guardarVisto(ultimo.id);
+  }
+
+  const bp = $("b-pedir");
+  if (miPedido) {
+    bp.textContent = "Cancelar mi pedido";
+    bp.className = "gris";
+    bp.disabled = false;
+    bp.onclick = () => accion("/api/intercambio/cancelar-pedido");
+  } else {
+    bp.textContent = "Pedir un chori";
+    bp.className = "";
+    bp.disabled = tengo;
+    bp.onclick = () => accion("/api/intercambio/pedir");
+  }
+  const bd = $("b-donar");
+  bd.disabled = !tengo;
+  bd.onclick = () => accion("/api/intercambio/donar", {},
+    "¿Donar 1 chori? Se descuenta ahora de su saldo. Si nadie lo toma, puede cancelar la donación y recuperarlo.");
+
+  $("i-ayuda").textContent = miPedido
+    ? "Su pedido está publicado. Cuando alguien le dé un chori, aparece en su saldo."
+    : tengo
+      ? "Puede pedir cuando ya no le queden choris."
+      : "Se quedó sin choris: puede pedir uno o tomar uno donado.";
+
+  // Transferencias con código
+  $("t-cant").max = Math.max(1, datos.restantes);
+  if (Number($("t-cant").value) > datos.restantes) $("t-cant").value = Math.max(1, datos.restantes);
+  $("b-transferir").disabled = !tengo;
+  $("b-transferir").onclick = () => {
+    const cantidad = Number($("t-cant").value);
+    accion("/api/intercambio/transferir", { cantidad },
+      `¿Reservar ${cantidad} chori${cantidad === 1 ? "" : "s"} para transferir? Salen ahora de su saldo y vuelven si el código vence o lo cancela.`, "e-uno");
+  };
+  const lc = $("l-codigos");
+  lc.innerHTML = "";
+  for (const t of datos.transferencias) {
+    const caja = document.createElement("div");
+    caja.className = "ticket";
+    const cod = document.createElement("div");
+    cod.className = "codigo";
+    cod.textContent = t.codigo;
+    const det = document.createElement("div");
+    det.className = "det";
+    det.textContent = `${t.cantidad} chori${t.cantidad === 1 ? "" : "s"} · vence en ${t.minutos} min`;
+    const botones = document.createElement("div");
+    botones.className = "botones";
+    const compartir = document.createElement("button");
+    compartir.className = "primario";
+    compartir.textContent = "Compartir";
+    compartir.onclick = () => compartirCodigo(t);
+    const cancelar = document.createElement("button");
+    cancelar.textContent = "Cancelar";
+    cancelar.onclick = () => accion("/api/intercambio/cancelar-transferencia", { id: t.id },
+      `¿Cancelar el código ${t.codigo}? Los choris vuelven a su saldo.`, "e-uno");
+    botones.append(compartir, cancelar);
+    caja.append(cod, det, botones);
+    lc.appendChild(caja);
+  }
+  $("b-canjear").onclick = async () => {
+    const codigo = $("c-codigo").value.trim();
+    if (!codigo) return;
+    $("e-uno").textContent = "";
+    $("b-canjear").disabled = true;
+    try {
+      const r = await api("/api/intercambio/canjear", { codigo });
+      $("c-codigo").value = "";
+      $("regalo").textContent = `¡Listo! ${r.de} le transfirió ${r.cantidad} chori${r.cantidad === 1 ? "" : "s"}.`;
+      $("regalo").classList.remove("oculto");
+      if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
+    } catch (e) {
+      $("e-uno").textContent = e.message;
+    } finally { $("b-canjear").disabled = false; }
+    await cargar();
+  };
+
+  const lp = $("l-pedidos");
+  lp.innerHTML = "";
+  if (!datos.pedidos.length) lp.innerHTML = `<p class="vacio">Nadie está pidiendo.</p>`;
+  for (const d of datos.pedidos) {
+    lp.appendChild(d.mio
+      ? fila(d.nombre, null, false, null, "su pedido")
+      : fila(d.nombre, "Darle uno", tengo, () => accion("/api/intercambio/dar", { id: d.id },
+          `¿Darle 1 chori a ${d.nombre}? Se descuenta de su saldo.`)));
+  }
+
+  const lo = $("l-ofertas");
+  lo.innerHTML = "";
+  if (!datos.ofertas.length) lo.innerHTML = `<p class="vacio">No hay choris donados.</p>`;
+  const nueva = datos.total === 0;  // cuenta sin choris todavía: el donante tiene que aprobar
+  for (const o of datos.ofertas) {
+    if (o.mio && o.solicitante) {
+      lo.appendChild(filaBotones(`${o.solicitante} quiere su chori`, "su donación", [
+        ["Aprobar", true, () => accion("/api/intercambio/responder-solicitud", { id: o.id, aprobar: true },
+          `¿Darle su chori donado a ${o.solicitante}?`)],
+        ["Rechazar", false, () => accion("/api/intercambio/responder-solicitud", { id: o.id, aprobar: false })],
+      ]));
+    } else if (o.mio) {
+      lo.appendChild(fila(o.nombre, "Cancelar", true, () => accion("/api/intercambio/cancelar-oferta", { id: o.id },
+        "¿Cancelar la donación? El chori vuelve a su saldo."), "su donación"));
+    } else if (o.pedida_por_mi) {
+      lo.appendChild(filaBotones(o.nombre, "esperando aprobación", [
+        ["Cancelar", false, () => accion("/api/intercambio/cancelar-solicitud", { id: o.id })],
+      ]));
+    } else if (o.reservada) {
+      lo.appendChild(fila(o.nombre, null, false, null, "reservado"));
+    } else {
+      lo.appendChild(fila(o.nombre, nueva ? "Pedirlo" : "Lo quiero", !tengo, () => accion("/api/intercambio/tomar",
+        { id: o.id }, nueva ? "Como su cuenta es nueva, quien lo donó tiene que aprobarlo. ¿Pedirlo?" : null)));
+    }
+  }
+}
+
+$("f-login").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const boton = ev.submitter; boton.disabled = true;
+  $("e-login").textContent = "";
+  try {
+    await api("/api/login", { usuario: $("usuario").value, clave: $("clave").value });
+    $("clave").value = "";
+    await cargar();
+  } catch (e) {
+    $("e-login").textContent = e.message;
+  } finally { boton.disabled = false; }
+};
+
+$("f-cambiar").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("e-cambiar").textContent = "";
+  if ($("nueva").value !== $("repetir").value) { $("e-cambiar").textContent = "Las contraseñas no coinciden."; return; }
+  const boton = ev.submitter; boton.disabled = true;
+  try {
+    await api("/api/cambiar-clave", { clave_nueva: $("nueva").value });
+    $("nueva").value = $("repetir").value = "";
+    await cargar();
+  } catch (e) {
+    $("e-cambiar").textContent = e.message;
+  } finally { boton.disabled = false; }
+};
+
+$("b-salir").onclick = async () => {
+  await api("/api/logout", {}).catch(() => {});
+  clearInterval(refresco); refresco = null; qrDibujado = null;
+  mostrar("v-login");
+};
+
+cargar();
+</script>
+</body>
+</html>

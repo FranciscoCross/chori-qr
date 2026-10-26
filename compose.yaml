@@ -1,0 +1,19 @@
+# Chori QR: un contenedor con Python 3.13 y SQLite. Sin build ni dependencias.
+#   cp .env.example .env   # y editar los PIN
+#   docker compose up -d   # http://localhost:8080
+services:
+  app:
+    image: python:3.13-slim
+    command: ["python", "-u", "/app/server.py"]
+    user: "${UID:-1000}:${GID:-1000}"  # dueño de ./data
+    env_file: .env
+    environment:
+      DB_PATH: /data/chori.db
+      TZ: ART3  # hora de Argentina (UTC-3) en el log; la imagen slim no trae tzdata
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}  # "1" detrás de HTTPS
+    volumes:
+      - ./app:/app:ro
+      - ./data:/data
+    ports:
+      - "${PUERTO:-8080}:8080"
+    restart: unless-stopped

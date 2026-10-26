@@ -1,0 +1,6 @@
+nombre,dni,cantidad,nota
+Ana Gómez,30111222,2,
+Bruno Díaz,31222333,1,
+Carla Fernández,32333444,3,
+Diego Ramírez,33444555,1,
+Elena Suárez,,2,falta el DNI: se completa desde el admin

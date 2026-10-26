@@ -1,0 +1,31 @@
+# Publicación con Traefik v3 y tres dominios (uno por página).
+# Requiere una red externa "traefik", un entrypoint "websecure" y un
+# certresolver "letsencrypt"; ajustar los nombres a su Traefik.
+#   docker compose -f compose.yaml -f compose.traefik.yaml up -d
+services:
+  app:
+    environment:
+      COOKIE_SECURE: "1"
+      HOST_USERS: ${HOST_USERS:?definir HOST_USERS en .env}
+      HOST_STAFF: ${HOST_STAFF:?definir HOST_STAFF en .env}
+      HOST_ADMIN: ${HOST_ADMIN:?definir HOST_ADMIN en .env}
+    ports: !reset []
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.choris.rule=Host(`${HOST_USERS}`) || Host(`${HOST_STAFF}`) || Host(`${HOST_ADMIN}`)"
+      - "traefik.http.routers.choris.entrypoints=websecure"
+      - "traefik.http.routers.choris.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.choris.middlewares=choris-sec"
+      - "traefik.http.services.choris.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.choris-sec.headers.frameDeny=true"
+      - "traefik.http.middlewares.choris-sec.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.choris-sec.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.choris-sec.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.choris-sec.headers.permissionsPolicy=camera=(self), microphone=(), geolocation=()"
+
+networks:
+  traefik:
+    external: true

@@ -1,0 +1,10 @@
+# Datos reales: nunca al repo
+.env
+data/
+datos/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+__pycache__/
+.impeccable/

@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f1410">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<title>Chori QR · Parrilla</title>
+<style>
+  :root {
+    --bg: #1f1410; --grilla: #2a1b14; --panel: #3a2418; --tinta: #0d0806;
+    --texto: #f6e7c8; --suave: #d8c6a4; --tenue: #b8a585; --amarillo: #ffd23f;
+    --acento: #ffb02e; --acento-sombra: #c27a12;
+    --ok: #5bd16b; --ok-sombra: #2f9a3f; --ok-bg: #10331a; --ok-texto: #b9f5c1;
+    --mal: #ff6b4a; --mal-bg: #3d0f0c; --mal-texto: #ffc2b5; --error: #ff8a80;
+    --pixel: "Press Start 2P", ui-monospace, monospace;
+    --cuerpo: "VT323", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background-color: var(--bg); color: var(--texto); font: 23px/1.3 var(--cuerpo);
+    background-image: linear-gradient(var(--grilla) 2px, transparent 2px), linear-gradient(90deg, var(--grilla) 2px, transparent 2px);
+    background-size: 24px 24px; -webkit-font-smoothing: none; }
+  h1, h2, h3 { font-family: var(--pixel); font-weight: 400; line-height: 1.6; }
+  h1 { font-size: 15px; color: var(--amarillo); text-shadow: 2px 2px 0 #000; display: flex; align-items: center; gap: 12px; }
+  .ico { flex: none; image-rendering: pixelated; vertical-align: middle; }
+  .oculto { display: none !important; }
+  label { display: block; font-family: var(--pixel); font-size: 10px; color: var(--amarillo); margin-bottom: 8px; }
+  input { font: 26px var(--cuerpo); width: 100%; padding: 12px; border: 4px solid var(--tinta); border-radius: 0;
+    background: var(--bg); color: var(--texto); box-shadow: inset 4px 4px 0 #120b08; outline: none; margin-bottom: 14px; }
+  input:focus { border-color: var(--acento); }
+  input::placeholder { color: #8f7a5c; }
+  button { font: 11px/1.6 var(--pixel); text-transform: uppercase; width: 100%; padding: 14px 10px; cursor: pointer;
+    border: 4px solid var(--tinta); border-radius: 0; background: var(--panel); color: var(--texto);
+    box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), 4px 4px 0 var(--tinta); }
+  button:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), 2px 2px 0 var(--tinta); }
+  button.primario { background: var(--acento); color: var(--bg); box-shadow: inset -4px -4px 0 var(--acento-sombra), 4px 4px 0 var(--tinta); }
+  button.link, button.secundario, button.peligro { background: none; border: 0; box-shadow: none; width: auto;
+    font-size: 9px; color: var(--tenue); text-decoration: underline; text-underline-offset: 4px; padding: 12px 4px; }
+  button.peligro { color: var(--error); }
+  button:disabled { opacity: .45; cursor: not-allowed; box-shadow: inset -4px -4px 0 rgba(0,0,0,.35); }
+  .error { color: var(--error); min-height: 1.4em; margin: 0 0 10px; }
+
+  main { max-width: 480px; margin: 0 auto; padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); }
+  h1 { justify-content: space-between; margin: 0 0 16px; font-size: 14px; }
+  h1 small { font-family: var(--pixel); font-size: 8px; color: var(--tenue); text-shadow: none; background: var(--panel);
+    border: 3px solid var(--tinta); padding: 6px 8px; }
+  #pantalla-pin p { color: var(--suave); }
+  .fila { display: flex; gap: 12px; margin-top: 12px; }
+  .fila button.link { flex: 1; }
+  #lector { width: 100%; background: var(--tinta); border: 4px solid var(--tinta); box-shadow: 6px 6px 0 #000; min-height: 260px; overflow: hidden; }
+  #btn-camara { margin-top: 16px !important; }
+  .tarjeta { background: var(--panel); border: 4px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta);
+    padding: 20px; margin-top: 18px; text-align: center; }
+  .tarjeta.ok { background: var(--ok-bg); border-color: var(--ok); }
+  .tarjeta.mal { background: var(--mal-bg); border-color: var(--mal); }
+  .estado { font: 16px/1.6 var(--pixel); text-shadow: 3px 3px 0 #000; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .tarjeta.ok .estado { color: var(--ok-texto); }
+  .tarjeta.mal .estado { color: var(--mal-texto); }
+  .nombre { font-size: 30px; margin: 10px 0 4px; }
+  .saldo { color: var(--suave); }
+  .saldo b { font: 17px var(--pixel); color: var(--texto); }
+  button.ok { background: var(--ok); color: #0d2a14; font-size: 14px; padding: 20px 12px;
+    box-shadow: inset -4px -4px 0 var(--ok-sombra), 4px 4px 0 var(--tinta); }
+  .resultados button { display: flex; justify-content: space-between; align-items: center; text-align: left; margin-top: 10px;
+    font: 25px var(--cuerpo); text-transform: none; }
+  .resultados button span:last-child { font: 12px var(--pixel); }
+</style>
+</head>
+<body>
+<main>
+  <h1><span style="display:flex;align-items:center;gap:12px"><svg class="ico" width="40" height="20" viewBox="0 0 16 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="4" width="14" height="3" fill="#d9a05b"/><rect x="0" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="15" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="1" y="7" width="14" height="1" fill="#8a5a2b"/><rect x="2" y="2" width="12" height="3" fill="#b8432f"/><rect x="1" y="3" width="1" height="1" fill="#b8432f"/><rect x="14" y="3" width="1" height="1" fill="#b8432f"/><rect x="3" y="2" width="9" height="1" fill="#e0704f"/><rect x="3" y="3" width="2" height="1" fill="#ffd23f"/><rect x="7" y="3" width="2" height="1" fill="#ffd23f"/><rect x="11" y="3" width="2" height="1" fill="#ffd23f"/></svg> PARRILLA</span> <small id="dispositivo"></small></h1>
+
+  <section id="pantalla-pin" class="oculto">
+    <p>Ingrese el PIN del personal:</p>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+    <button id="btn-pin" class="primario">Ingresar</button>
+    <p class="error" id="error-pin"></p>
+  </section>
+
+  <section id="pantalla-scan" class="oculto">
+    <div id="lector"></div>
+    <button id="btn-camara" class="primario" style="margin-top:10px">Activar cámara</button>
+
+    <div id="resultado" class="tarjeta oculto"></div>
+
+    <div class="fila">
+      <button id="btn-buscar" class="link">Buscar por nombre</button>
+      <button id="btn-salir" class="link">Salir</button>
+    </div>
+    <div id="panel-buscar" class="oculto">
+      <input id="texto-buscar" placeholder="Nombre o apellido" autocomplete="off">
+      <div class="resultados" id="resultados"></div>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const $ = (id) => document.getElementById(id);
+
+function guardar(clave, valor) { try { localStorage.setItem(clave, valor); } catch {} }
+function leer(clave) { try { return localStorage.getItem(clave); } catch { return null; } }
+
+let dispositivo = leer("chori_dispositivo");
+if (!dispositivo) {
+  dispositivo = "Celu-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  guardar("chori_dispositivo", dispositivo);
+}
+$("dispositivo").textContent = dispositivo;
+
+class PinInvalido extends Error {}
+
+async function api(ruta, datos) {
+  const r = await fetch("/api/staff/" + ruta, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos),
+  });
+  const cuerpo = await r.json().catch(() => ({}));
+  if (r.status === 401) throw new PinInvalido();
+  if (!r.ok) throw new Error(cuerpo.error || r.statusText);
+  return cuerpo;
+}
+
+function vibrar(patron) { if (navigator.vibrate) navigator.vibrate(patron); }
+
+// ---------- PIN ----------
+function mostrarPin(mensaje = "") {
+  $("pantalla-scan").classList.add("oculto");
+  $("pantalla-pin").classList.remove("oculto");
+  $("error-pin").textContent = mensaje;
+  $("pin").value = "";
+  $("pin").focus();
+}
+
+$("btn-pin").onclick = async () => {
+  const valor = $("pin").value.trim();
+  if (!valor) return;
+  $("btn-pin").disabled = true;
+  try {
+    const r = await fetch("/api/staff/login", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: valor }),
+    });
+    if (!r.ok) {
+      const cuerpo = await r.json().catch(() => ({}));
+      throw new Error(cuerpo.error || "Error de conexión: " + r.statusText);
+    }
+    mostrarScan();
+  } catch (e) {
+    $("error-pin").textContent = e.message;
+  } finally {
+    $("btn-pin").disabled = false;
+  }
+};
+$("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-pin").click(); });
+$("btn-salir").onclick = async () => {
+  await fetch("/api/logout", { method: "POST" }).catch(() => {});
+  detenerCamara(); mostrarPin();
+};
+
+// ---------- Cámara ----------
+let lector = null;
+let ocupado = false;
+
+function mostrarScan() {
+  $("pantalla-pin").classList.add("oculto");
+  $("pantalla-scan").classList.remove("oculto");
+}
+
+$("btn-camara").onclick = async () => {
+  $("btn-camara").disabled = true;
+  try {
+    lector = new Html5Qrcode("lector");
+    await lector.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      alLeer,
+      () => {}
+    );
+    $("btn-camara").classList.add("oculto");
+  } catch (e) {
+    $("btn-camara").disabled = false;
+    mostrarTarjeta("mal", `<div class="estado">Sin cámara</div><p>No se pudo abrir la cámara. Revise los permisos del navegador.</p>`);
+  }
+};
+
+function pausarCamara() { try { lector && lector.pause(true); } catch {} }
+function reanudarCamara() { try { lector && lector.resume(); } catch {} }
+function detenerCamara() {
+  if (lector) { lector.stop().catch(() => {}); lector = null; }
+  $("btn-camara").classList.remove("oculto");
+  $("btn-camara").disabled = false;
+}
+
+function alLeer(texto) {
+  if (ocupado) return;
+  ocupado = true;
+  pausarCamara();
+  consultar(texto.trim());
+}
+
+function siguiente() {
+  $("resultado").classList.add("oculto");
+  ocupado = false;
+  reanudarCamara();
+}
+
+// ---------- Resultado ----------
+function mostrarTarjeta(clase, html) {
+  const t = $("resultado");
+  t.className = "tarjeta " + clase;
+  t.innerHTML = html;
+}
+
+function textoSaldo(p) {
+  return `Le quedan <b>${p.restantes}</b> de ${p.total}`;
+}
+
+function escapar(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function manejarError(e, reintentar) {
+  if (e instanceof PinInvalido) { detenerCamara(); mostrarPin("La sesión venció. Ingrese el PIN de nuevo."); return; }
+  vibrar([100, 50, 100]);
+  mostrarTarjeta("mal", `<div class="estado">Error de conexión</div><p>${escapar(e.message)}</p>
+    <div class="fila"><button id="b-reintentar" class="primario">Reintentar</button><button id="b-sig">Cancelar</button></div>`);
+  $("b-reintentar").onclick = reintentar;
+  $("b-sig").onclick = siguiente;
+}
+
+async function consultar(id) {
+  if (!UUID_RE.test(id)) {
+    vibrar([200, 100, 200]);
+    mostrarTarjeta("mal", `<div class="estado">QR no válido</div><p>Este código no es de la parrilla.</p>
+      <button id="b-sig">Escanear otro</button>`);
+    $("b-sig").onclick = siguiente;
+    return;
+  }
+  mostrarTarjeta("", "Consultando…");
+  try {
+    const { persona: p } = await api("consultar", { id });
+    if (!p) {
+      vibrar([200, 100, 200]);
+      mostrarTarjeta("mal", `<div class="estado">No registrado</div><p>Este QR no está en la lista.</p>
+        <button id="b-sig">Escanear otro</button>`);
+      $("b-sig").onclick = siguiente;
+      return;
+    }
+    mostrarPersona(id, p);
+  } catch (e) {
+    manejarError(e, () => consultar(id));
+  }
+}
+
+function mostrarPersona(id, p) {
+  if (p.restantes > 0) {
+    vibrar(80);
+    mostrarTarjeta("ok", `<div class="estado"><svg class="ico" width="32" height="32" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true" fill="#5bd16b"><rect x="6" y="1" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="5" width="2" height="1"/></svg>PUEDE RETIRAR</div>
+      <div class="nombre">${escapar(p.nombre)}</div><div class="saldo">${textoSaldo(p)}</div>
+      <div class="fila"><button id="b-entregar" class="ok">Entregar 1 chori</button></div>
+      <div class="fila"><button id="b-sig">Cancelar</button></div>`);
+    $("b-entregar").onclick = () => entregar(id);
+    $("b-sig").onclick = siguiente;
+  } else {
+    vibrar([300, 100, 300]);
+    mostrarTarjeta("mal", `<div class="estado"><svg class="ico" width="32" height="32" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true" fill="#ff6b4a"><rect x="1" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="3" width="2" height="2"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg>SIN CHORIS</div>
+      <div class="nombre">${escapar(p.nombre)}</div><div class="saldo">Ya retiró los ${p.total} que tenía</div>
+      <div class="fila"><button id="b-sig">Escanear otro</button></div>`);
+    $("b-sig").onclick = siguiente;
+  }
+}
+
+async function entregar(id) {
+  $("b-entregar").disabled = true;
+  try {
+    const { ok, persona: r } = await api("entregar", { id, dispositivo });
+    if (!ok) { mostrarPersona(id, r || { nombre: "?", restantes: 0, total: 0 }); return; }
+    vibrar(150);
+    mostrarTarjeta("ok", `<div class="estado"><svg class="ico" width="40" height="20" viewBox="0 0 16 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="4" width="14" height="3" fill="#d9a05b"/><rect x="0" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="15" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="1" y="7" width="14" height="1" fill="#8a5a2b"/><rect x="2" y="2" width="12" height="3" fill="#b8432f"/><rect x="1" y="3" width="1" height="1" fill="#b8432f"/><rect x="14" y="3" width="1" height="1" fill="#b8432f"/><rect x="3" y="2" width="9" height="1" fill="#e0704f"/><rect x="3" y="3" width="2" height="1" fill="#ffd23f"/><rect x="7" y="3" width="2" height="1" fill="#ffd23f"/><rect x="11" y="3" width="2" height="1" fill="#ffd23f"/></svg>ENTREGADO</div>
+      <div class="nombre">${escapar(r.nombre)}</div><div class="saldo">${textoSaldo(r)}</div>
+      <div class="fila"><button id="b-sig" class="primario">Siguiente</button></div>
+      <div class="fila"><button id="b-deshacer" class="link">Deshacer (fue un error)</button></div>`);
+    $("b-sig").onclick = siguiente;
+    $("b-deshacer").onclick = () => deshacer(id);
+  } catch (e) {
+    manejarError(e, () => consultar(id));
+  }
+}
+
+async function deshacer(id) {
+  $("b-deshacer").disabled = true;
+  try {
+    const { persona: r } = await api("deshacer", { id, dispositivo });
+    mostrarTarjeta("", `<div class="estado">DESHECHO</div>
+      <div class="nombre">${escapar(r.nombre)}</div><div class="saldo">${textoSaldo(r)}</div>
+      <div class="fila"><button id="b-sig" class="primario">Siguiente</button></div>`);
+    $("b-sig").onclick = siguiente;
+  } catch (e) {
+    manejarError(e, () => consultar(id));
+  }
+}
+
+// ---------- Búsqueda manual ----------
+$("btn-buscar").onclick = () => {
+  $("panel-buscar").classList.toggle("oculto");
+  $("texto-buscar").focus();
+};
+
+let temporizador;
+$("texto-buscar").addEventListener("input", () => {
+  clearTimeout(temporizador);
+  const texto = $("texto-buscar").value.trim();
+  if (texto.length < 2) { $("resultados").innerHTML = ""; return; }
+  temporizador = setTimeout(async () => {
+    try {
+      const { personas: filas } = await api("buscar", { texto });
+      $("resultados").innerHTML = filas.length ? "" : `<p class="saldo">Sin resultados.</p>`;
+      for (const p of filas) {
+        const b = document.createElement("button");
+        b.innerHTML = `<span>${escapar(p.nombre)}</span><span>${p.restantes}/${p.total}</span>`;
+        b.onclick = () => {
+          ocupado = true;
+          pausarCamara();
+          $("panel-buscar").classList.add("oculto");
+          $("texto-buscar").value = "";
+          $("resultados").innerHTML = "";
+          mostrarPersona(p.id, p);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        };
+        $("resultados").appendChild(b);
+      }
+    } catch (e) {
+      if (e instanceof PinInvalido) { mostrarPin("La sesión venció. Ingrese el PIN de nuevo."); return; }
+      $("resultados").innerHTML = `<p class="error">Error: ${escapar(e.message)}</p>`;
+    }
+  }, 300);
+});
+
+api("buscar", { texto: "\u0000" }).then(mostrarScan, () => mostrarPin());
+</script>
+</body>
+</html>

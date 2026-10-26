@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f1410">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<title>Chori QR · Admin</title>
+<style>
+  :root {
+    --bg: #1f1410; --grilla: #2a1b14; --panel: #3a2418; --tinta: #0d0806;
+    --texto: #f6e7c8; --suave: #d8c6a4; --tenue: #b8a585; --amarillo: #ffd23f;
+    --acento: #ffb02e; --acento-sombra: #c27a12;
+    --ok: #5bd16b; --ok-sombra: #2f9a3f; --ok-bg: #10331a; --ok-texto: #b9f5c1;
+    --mal: #ff6b4a; --mal-bg: #3d0f0c; --mal-texto: #ffc2b5; --error: #ff8a80;
+    --pixel: "Press Start 2P", ui-monospace, monospace;
+    --cuerpo: "VT323", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background-color: var(--bg); color: var(--texto); font: 23px/1.3 var(--cuerpo);
+    background-image: linear-gradient(var(--grilla) 2px, transparent 2px), linear-gradient(90deg, var(--grilla) 2px, transparent 2px);
+    background-size: 24px 24px; -webkit-font-smoothing: none; }
+  h1, h2, h3 { font-family: var(--pixel); font-weight: 400; line-height: 1.6; }
+  h1 { font-size: 15px; color: var(--amarillo); text-shadow: 2px 2px 0 #000; display: flex; align-items: center; gap: 12px; }
+  .ico { flex: none; image-rendering: pixelated; vertical-align: middle; }
+  .oculto { display: none !important; }
+  label { display: block; font-family: var(--pixel); font-size: 10px; color: var(--amarillo); margin-bottom: 8px; }
+  input { font: 26px var(--cuerpo); width: 100%; padding: 12px; border: 4px solid var(--tinta); border-radius: 0;
+    background: var(--bg); color: var(--texto); box-shadow: inset 4px 4px 0 #120b08; outline: none; margin-bottom: 14px; }
+  input:focus { border-color: var(--acento); }
+  input::placeholder { color: #8f7a5c; }
+  button { font: 11px/1.6 var(--pixel); text-transform: uppercase; width: 100%; padding: 14px 10px; cursor: pointer;
+    border: 4px solid var(--tinta); border-radius: 0; background: var(--panel); color: var(--texto);
+    box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), 4px 4px 0 var(--tinta); }
+  button:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), 2px 2px 0 var(--tinta); }
+  button.primario { background: var(--acento); color: var(--bg); box-shadow: inset -4px -4px 0 var(--acento-sombra), 4px 4px 0 var(--tinta); }
+  button.link, button.secundario, button.peligro { background: none; border: 0; box-shadow: none; width: auto;
+    font-size: 9px; color: var(--tenue); text-decoration: underline; text-underline-offset: 4px; padding: 12px 4px; }
+  button.peligro { color: var(--error); }
+  button:disabled { opacity: .45; cursor: not-allowed; box-shadow: inset -4px -4px 0 rgba(0,0,0,.35); }
+  .error { color: var(--error); min-height: 1.4em; margin: 0 0 10px; }
+
+  main { max-width: 640px; margin: 0 auto; padding: 20px 20px calc(28px + env(safe-area-inset-bottom)); }
+  h1 { margin: 0 0 16px; font-size: 14px; }
+  h2 { font-size: 11px; margin: 0 0 14px; color: var(--amarillo); }
+  #v-pin form, .formulario { background: var(--panel); border: 4px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta); padding: 18px; }
+  .aviso { color: var(--ok-texto); min-height: 1.4em; margin: 0 0 10px; }
+  .totales { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .totales div { background: var(--panel); border: 4px solid var(--tinta); box-shadow: 4px 4px 0 var(--tinta); padding: 12px 6px; text-align: center; }
+  .totales b { display: block; font: 20px/1.4 var(--pixel); color: var(--acento); margin-bottom: 6px; }
+  .totales span { font-size: 20px; color: var(--suave); }
+  .barra { display: flex; gap: 10px; align-items: stretch; margin-bottom: 10px; }
+  .barra input { margin: 0; flex: 1; min-width: 0; }
+  .barra button { width: auto; white-space: nowrap; }
+  .filtro { display: flex; gap: 8px; align-items: center; font: 21px var(--cuerpo); color: var(--tenue); margin-bottom: 12px; }
+  .filtro input { width: 20px; height: 20px; margin: 0; accent-color: var(--acento); box-shadow: none; }
+  .lista { display: flex; flex-direction: column; gap: 8px; }
+  .fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left;
+    background: var(--panel); border: 4px solid var(--tinta); box-shadow: none; padding: 10px 12px;
+    font: 24px var(--cuerpo); text-transform: none; color: var(--texto); }
+  .fila:hover { border-color: var(--acento); }
+  .fila .nom { color: var(--texto); }
+  .fila .det { font-size: 20px; color: var(--tenue); }
+  .fila .saldo { font: 13px var(--pixel); white-space: nowrap; }
+  .chip { display: inline-block; font: 8px/1 var(--pixel); text-transform: uppercase; padding: 5px 6px; margin-left: 6px; border: 2px solid; }
+  .chip.falta { background: var(--mal-bg); color: var(--mal-texto); border-color: var(--mal); margin-left: 0; }
+  .chip.clave { background: var(--ok-bg); color: var(--ok-texto); border-color: var(--ok); }
+  .formulario { margin-bottom: 18px; border-color: var(--acento); }
+  .grupo { display: grid; grid-template-columns: 1fr 120px; gap: 12px; }
+  .acciones { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+  .acciones .primario { flex: 1; }
+  .acciones button:not(.primario):not(.link):not(.peligro) { width: auto; }
+  .info { font-size: 21px; color: var(--tenue); margin: 0 0 10px; }
+  .bloqueos { background: var(--mal-bg); border: 4px solid var(--mal); box-shadow: 4px 4px 0 var(--tinta); padding: 12px; margin-bottom: 18px; }
+  .bloqueos h2 { font-size: 10px; color: var(--mal-texto); display: flex; align-items: center; gap: 10px; }
+  .bloqueo { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 4px dotted #5c1f18; }
+  .bloqueo:first-of-type { border-top: 0; }
+  .bloqueo .det { font-size: 20px; color: #e9b8ad; }
+  .bloqueo button { width: auto; font-size: 8px; padding: 12px 8px; white-space: nowrap; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .comprobantes { background: var(--panel); border: 4px solid var(--amarillo); box-shadow: 4px 4px 0 var(--tinta); padding: 12px; margin-bottom: 18px; }
+  .comprobantes h2 { font-size: 10px; color: var(--amarillo); }
+  .cp { border-top: 4px dotted #5a3a26; padding: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+  .cp:first-of-type { border-top: 0; }
+  .cp .quien { font-size: 24px; }
+  .cp .det { color: var(--tenue); font-size: 20px; }
+  .cp a.ver { display: block; border: 4px solid var(--tinta); background: var(--bg); }
+  .cp img { display: block; width: 100%; max-height: 420px; object-fit: contain; image-rendering: auto; }
+  .cp a.archivo { font: 10px/1.6 var(--pixel); color: var(--acento); padding: 12px; display: inline-block; }
+  .cp .linea { display: flex; gap: 10px; align-items: stretch; }
+  .cp .linea input { margin: 0; flex: 0 0 90px; text-align: center; }
+  .cp .linea button { flex: 1; }
+  .cp .dup { font: 9px/1.8 var(--pixel); color: var(--mal-texto); background: var(--mal-bg); border: 3px solid var(--mal);
+    padding: 6px 8px; text-transform: uppercase; }
+  .registro { background: var(--panel); border: 4px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta); margin-top: 24px; }
+  .registro summary { font: 11px/1.6 var(--pixel); color: var(--amarillo); padding: 16px 14px; cursor: pointer; list-style: none; }
+  .registro summary::-webkit-details-marker { display: none; }
+  .registro summary::before { content: "+ "; }
+  .registro[open] summary::before { content: "- "; }
+  .registro .cuerpo { padding: 0 14px 14px; }
+  .registro .barra select { font: 22px var(--cuerpo); background: var(--bg); color: var(--texto); border: 4px solid var(--tinta);
+    padding: 8px; border-radius: 0; }
+  .ev { border-top: 4px dotted #5a3a26; padding: 10px 0; display: flex; flex-direction: column; gap: 2px; }
+  .ev:first-child { border-top: 0; }
+  .ev .arriba { display: flex; justify-content: space-between; gap: 8px; color: var(--tenue); font-size: 20px; }
+  .ev .quien { font-size: 22px; }
+  .ev .res { font-size: 21px; }
+  .ev .res.bien { color: var(--ok-texto); }
+  .ev .res.mal { color: var(--mal-texto); }
+  .ev .tipo { font: 9px/1.8 var(--pixel); color: var(--amarillo); text-transform: uppercase; }
+</style>
+</head>
+<body>
+<main>
+  <h1><svg class="ico" width="40" height="20" viewBox="0 0 16 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="4" width="14" height="3" fill="#d9a05b"/><rect x="0" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="15" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="1" y="7" width="14" height="1" fill="#8a5a2b"/><rect x="2" y="2" width="12" height="3" fill="#b8432f"/><rect x="1" y="3" width="1" height="1" fill="#b8432f"/><rect x="14" y="3" width="1" height="1" fill="#b8432f"/><rect x="3" y="2" width="9" height="1" fill="#e0704f"/><rect x="3" y="3" width="2" height="1" fill="#ffd23f"/><rect x="7" y="3" width="2" height="1" fill="#ffd23f"/><rect x="11" y="3" width="2" height="1" fill="#ffd23f"/></svg> ADMIN</h1>
+
+  <section id="v-pin" class="oculto">
+    <form id="f-pin">
+      <label for="pin">PIN de administración</label>
+      <input id="pin" type="password" autocomplete="off" required>
+      <p class="error" id="e-pin"></p>
+      <button class="primario">Ingresar</button>
+    </form>
+  </section>
+
+  <section id="v-panel" class="oculto">
+    <div class="totales">
+      <div><b id="t-personas">0</b><span>personas</span></div>
+      <div><b id="t-vendidos">0</b><span>choris</span></div>
+      <div><b id="t-entregados">0</b><span>entregados</span></div>
+    </div>
+
+    <form id="f-persona" class="formulario oculto" autocomplete="off">
+      <h2 id="f-titulo">Nueva persona</h2>
+      <label for="f-nombre">Nombre y apellido</label>
+      <input id="f-nombre" required maxlength="80">
+      <div class="grupo">
+        <div>
+          <label for="f-dni">DNI (sin puntos)</label>
+          <input id="f-dni" inputmode="numeric" maxlength="10" placeholder="Opcional">
+        </div>
+        <div>
+          <label for="f-total">Choris</label>
+          <input id="f-total" type="number" inputmode="numeric" min="0" max="100" required>
+        </div>
+      </div>
+      <p class="info" id="f-info"></p>
+      <p class="error" id="e-form"></p>
+      <div class="acciones">
+        <button class="primario" id="b-guardar">Guardar</button>
+        <button type="button" id="b-cancelar">Cancelar</button>
+      </div>
+      <div class="acciones" id="acciones-extra">
+        <button type="button" class="link" id="b-reset">Resetear contraseña</button>
+        <button type="button" class="link" id="b-ver-registro">Ver registro</button>
+        <button type="button" class="peligro" id="b-borrar">Borrar persona</button>
+      </div>
+    </form>
+
+    <section id="comprobantes" class="comprobantes oculto">
+      <h2>Comprobantes pendientes (<span id="n-comp">0</span>)</h2>
+      <div id="lista-comprobantes"></div>
+    </section>
+
+    <section id="bloqueos" class="bloqueos oculto">
+      <h2><svg class="ico" width="20" height="20" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true" fill="#ffc2b5"><rect x="2" y="0" width="4" height="1"/><rect x="1" y="1" width="1" height="3"/><rect x="6" y="1" width="1" height="3"/><rect x="0" y="3" width="8" height="5"/><rect x="3" y="5" width="2" height="2" fill="#3d0f0c"/></svg>Bloqueados por intentos fallidos</h2>
+      <div id="lista-bloqueos"></div>
+    </section>
+
+    <p class="aviso" id="aviso"></p>
+    <div class="barra">
+      <input id="buscar" placeholder="Buscar por nombre o DNI" autocomplete="off">
+      <button class="primario" id="b-nueva">+ Agregar</button>
+    </div>
+    <label class="filtro"><input type="checkbox" id="solo-sin-dni"> Mostrar solo personas sin DNI</label>
+    <div class="lista" id="lista"></div>
+
+    <details class="registro" id="registro">
+      <summary>Registro de accesos</summary>
+      <div class="cuerpo">
+        <div class="barra">
+          <label for="r-dni" class="sr">Filtrar por DNI</label>
+          <input id="r-dni" inputmode="numeric" placeholder="DNI" autocomplete="off">
+          <label for="r-tipo" class="sr">Tipo de evento</label>
+          <select id="r-tipo">
+            <option value="todos">Todos</option>
+            <option value="fallos">Solo fallos</option>
+            <option value="claves">Contraseñas</option>
+            <option value="admin">PIN y admin</option>
+          </select>
+        </div>
+        <p class="info" id="r-info"></p>
+        <div id="l-registro"></div>
+      </div>
+    </details>
+    <p><button class="link" id="b-salir">Salir</button></p>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let personas = [];
+let enOferta = 0;  // choris donados que todavía nadie tomó
+let editando = null;  // persona en edición, o null si es nueva
+
+async function api(ruta, datos = {}) {
+  const r = await fetch(ruta, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos),
+  });
+  const cuerpo = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(cuerpo.error || "Error de conexión"); e.estado = r.status; throw e; }
+  return cuerpo;
+}
+
+function mostrar(vista) {
+  $("v-pin").classList.toggle("oculto", vista !== "pin");
+  $("v-panel").classList.toggle("oculto", vista !== "panel");
+}
+
+function avisar(texto) {
+  $("aviso").textContent = texto;
+  clearTimeout(avisar.t);
+  avisar.t = setTimeout(() => { $("aviso").textContent = ""; }, 4000);
+}
+
+function formatoDni(dni) {
+  return dni ? Number(dni).toLocaleString("es-AR") : "";
+}
+
+async function cargar() {
+  try {
+    ({ personas, en_oferta: enOferta } = await api("/api/admin/personas"));
+    mostrar("panel");
+    pintar();
+    await Promise.all([cargarBloqueos(), cargarComprobantes()]);
+  } catch (e) {
+    if (e.estado === 401) mostrar("pin"); else avisar(e.message);
+  }
+}
+
+function pintar() {
+  $("t-personas").textContent = personas.length;
+  $("t-vendidos").textContent = personas.reduce((a, p) => a + p.total, 0) + enOferta;
+  $("t-entregados").textContent = personas.reduce((a, p) => a + p.total - p.restantes, 0);
+
+  const q = $("buscar").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const qDigitos = q.replace(/\D/g, "");
+  const soloSinDni = $("solo-sin-dni").checked;
+  const lista = $("lista");
+  lista.innerHTML = "";
+  const visibles = personas.filter((p) => {
+    if (soloSinDni && p.dni) return false;
+    if (!q) return true;
+    const nombre = p.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return nombre.includes(q) || (qDigitos && (p.dni || "").includes(qDigitos));
+  });
+  if (!visibles.length) lista.innerHTML = `<p class="info">Sin resultados.</p>`;
+  for (const p of visibles) {
+    const b = document.createElement("button");
+    b.className = "fila";
+    const izq = document.createElement("div");
+    const nom = document.createElement("div");
+    nom.className = "nom";
+    nom.textContent = p.nombre;
+    const det = document.createElement("div");
+    det.className = "det";
+    det.innerHTML = p.dni
+      ? `DNI ${formatoDni(p.dni)}${p.tiene_clave ? '<span class="chip clave">ingresó</span>' : ""}`
+      : `<span class="chip falta">falta DNI</span>`;
+    izq.append(nom, det);
+    const saldo = document.createElement("div");
+    saldo.className = "saldo";
+    saldo.textContent = `${p.restantes}/${p.total}`;
+    b.append(izq, saldo);
+    b.onclick = () => abrirFormulario(p);
+    lista.appendChild(b);
+  }
+}
+
+async function cargarComprobantes() {
+  const { comprobantes, precio } = await api("/api/admin/comprobantes");
+  $("comprobantes").classList.toggle("oculto", !comprobantes.length);
+  $("n-comp").textContent = comprobantes.length;
+  const lista = $("lista-comprobantes");
+  // No repintar si nada cambió: no pisar una cantidad que el admin está editando.
+  const firma = comprobantes.map((c) => c.id).join(",");
+  if (lista.dataset.firma === firma) return;
+  lista.dataset.firma = firma;
+  lista.innerHTML = "";
+  for (const c of comprobantes) {
+    const caja = document.createElement("div");
+    caja.className = "cp";
+    const quien = document.createElement("div");
+    quien.className = "quien";
+    quien.textContent = `${c.nombre} · DNI ${formatoDni(c.dni)}`;
+    const det = document.createElement("div");
+    det.className = "det";
+    det.textContent = `#${c.id} · ${c.fecha} · dice que pagó ${c.pedida} chori${c.pedida === 1 ? "" : "s"} `
+      + `($${(c.pedida * precio).toLocaleString("es-AR")}) · hoy tiene ${c.total_actual}`;
+    const url = `/api/admin/comprobante/${c.id}`;
+    let vista;
+    if (/^image\/(jpeg|png|webp)$/.test(c.tipo)) {
+      vista = document.createElement("a");
+      vista.className = "ver";
+      vista.href = url;
+      vista.target = "_blank";
+      vista.rel = "noopener";
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = `Comprobante de ${c.nombre}`;
+      img.loading = "lazy";
+      vista.appendChild(img);
+    } else {
+      vista = document.createElement("a");
+      vista.className = "archivo";
+      vista.href = url;
+      vista.target = "_blank";
+      vista.rel = "noopener";
+      vista.textContent = c.tipo === "application/pdf" ? "Abrir PDF" : "Descargar foto (HEIC)";
+    }
+    const linea = document.createElement("div");
+    linea.className = "linea";
+    const cant = document.createElement("input");
+    cant.type = "number";
+    cant.min = "1";
+    cant.max = "50";
+    cant.value = c.pedida;
+    cant.setAttribute("aria-label", "Choris a acreditar");
+    const aprobar = document.createElement("button");
+    aprobar.className = "primario";
+    aprobar.textContent = "Aprobar";
+    aprobar.onclick = () => resolverComprobante(c, true, Number(cant.value));
+    const rechazar = document.createElement("button");
+    rechazar.textContent = "Rechazar";
+    rechazar.onclick = () => resolverComprobante(c, false, 0, c.duplicado_de ? "Comprobante duplicado" : undefined);
+    linea.append(cant, aprobar, rechazar);
+    caja.append(quien, det);
+    if (c.duplicado_de) {
+      const dup = document.createElement("div");
+      dup.className = "dup";
+      dup.textContent = `Duplicado: es el mismo archivo que el comprobante #${c.duplicado_de}`;
+      caja.appendChild(dup);
+    }
+    caja.append(vista, linea);
+    lista.appendChild(caja);
+  }
+}
+
+async function resolverComprobante(c, aprobar, cantidad, motivoSugerido = "No se encontró la transferencia") {
+  let motivo = null;
+  if (aprobar) {
+    if (!confirm(`¿Acreditar ${cantidad} chori${cantidad === 1 ? "" : "s"} a ${c.nombre}?`)) return;
+  } else {
+    motivo = prompt(`Motivo del rechazo para ${c.nombre} (lo va a ver):`, motivoSugerido);
+    if (!motivo) return;
+  }
+  try {
+    await api("/api/admin/resolver-comprobante", { id: c.id, aprobar, cantidad, motivo });
+    avisar(aprobar ? `Aprobado: ${cantidad} chori${cantidad === 1 ? "" : "s"} para ${c.nombre}` : `Rechazado: ${c.nombre}`);
+    $("lista-comprobantes").dataset.firma = "";
+    await cargar();
+  } catch (e) { avisar(e.message); }
+}
+
+async function cargarBloqueos() {
+  const { bloqueos } = await api("/api/admin/bloqueos");
+  $("bloqueos").classList.toggle("oculto", !bloqueos.length);
+  const lista = $("lista-bloqueos");
+  lista.innerHTML = "";
+  for (const b of bloqueos) {
+    const fila = document.createElement("div");
+    fila.className = "bloqueo";
+    const txt = document.createElement("div");
+    const tit = document.createElement("div");
+    tit.textContent = b.titulo;
+    const det = document.createElement("div");
+    det.className = "det";
+    det.textContent = `${b.detalle} · faltan ${b.minutos} min`;
+    txt.append(tit, det);
+    const boton = document.createElement("button");
+    boton.className = "primario";
+    boton.textContent = "Desbloquear";
+    boton.onclick = async () => {
+      boton.disabled = true;
+      try {
+        await api("/api/admin/desbloquear", { clave: b.clave });
+        avisar(`Desbloqueado: ${b.titulo}`);
+        await cargarBloqueos();
+      } catch (e) { boton.disabled = false; avisar(e.message); }
+    };
+    fila.append(txt, boton);
+    lista.appendChild(fila);
+  }
+}
+
+// Mientras el panel está abierto, refresca bloqueos, saldos y registro cada 30 s.
+setInterval(() => {
+  if (!$("v-panel").classList.contains("oculto") && $("f-persona").classList.contains("oculto")) cargar();
+  if ($("registro").open) cargarRegistro();
+}, 30000);
+
+const EVENTOS = {
+  LOGIN: "Ingreso", CAMBIO_CLAVE: "Cambio de contraseña", LOGIN_ASADOR: "PIN asador", LOGIN_ADMIN: "PIN admin",
+  RESET_CLAVE_ADMIN: "Reseteo de contraseña (admin)", DESBLOQUEO_ADMIN: "Desbloqueo (admin)",
+  REGISTRO: "Cuenta nueva", COMPROBANTE_SUBIDO: "Comprobante subido",
+  COMPROBANTE_APROBADO: "Comprobante aprobado", COMPROBANTE_RECHAZADO: "Comprobante rechazado",
+};
+const RESULTADOS = {
+  ok: "correcto", ok_primer_ingreso: "primer ingreso", clave_incorrecta: "contraseña incorrecta",
+  clave_inicial_incorrecta: "contraseña inicial incorrecta", dni_inexistente: "DNI no registrado",
+  pin_incorrecto: "PIN incorrecto", bloqueado: "rechazado: estaba bloqueado",
+  dni_existente: "rechazada: el DNI ya tenía cuenta", limite_ip: "rechazada: demasiadas cuentas desde esa IP",
+  pendiente: "en revisión", rechazado: "rechazado",
+  duplicado_propio: "rechazado: ya lo había enviado", duplicado_ajeno: "rechazado: otra cuenta ya envió ese archivo",
+};
+
+function textoResultado(ev) {
+  if (ev.evento === "CAMBIO_CLAVE") return ev.detalle === "primera_vez=si" ? "creó su contraseña" : "cambió su contraseña";
+  if (ev.evento === "DESBLOQUEO_ADMIN") return (ev.detalle || "").replace("bloqueo=", "liberó ");
+  if (!ev.resultado) return ev.detalle || "";
+  const base = ev.resultado.replace("+bloqueo", "");
+  let t = RESULTADOS[base] || base;
+  if (ev.resultado.endsWith("+bloqueo")) t += " · bloqueó 15 min";
+  return t;
+}
+
+async function cargarRegistro() {
+  let datos;
+  try {
+    datos = await api("/api/admin/auditoria", { dni: $("r-dni").value, tipo: $("r-tipo").value });
+  } catch (e) {
+    if (e.estado === 401) mostrar("pin"); else $("r-info").textContent = e.message;
+    return;
+  }
+  $("r-info").textContent = `${datos.eventos.length} de ${datos.total} eventos (los 200 más recientes).`;
+  const lista = $("l-registro");
+  lista.innerHTML = "";
+  if (!datos.eventos.length) lista.innerHTML = `<p class="info">Sin eventos.</p>`;
+  for (const ev of datos.eventos) {
+    const fila = document.createElement("div");
+    fila.className = "ev";
+    const arriba = document.createElement("div");
+    arriba.className = "arriba";
+    const tipo = document.createElement("span");
+    tipo.className = "tipo";
+    tipo.textContent = EVENTOS[ev.evento] || ev.evento;
+    const hora = document.createElement("span");
+    hora.textContent = ev.hora;
+    arriba.append(tipo, hora);
+    fila.appendChild(arriba);
+    if (ev.dni) {
+      const quien = document.createElement("div");
+      quien.className = "quien";
+      quien.textContent = `${ev.nombre || "DNI no registrado"} · DNI ${formatoDni(ev.dni)}`;
+      fila.appendChild(quien);
+    }
+    const res = document.createElement("div");
+    const fallo = /incorrect|inexistente|bloque/.test(ev.resultado || "");
+    res.className = "res " + (fallo ? "mal" : ev.resultado ? "bien" : "");
+    res.textContent = `${textoResultado(ev)} · IP ${ev.ip}`;
+    fila.appendChild(res);
+    lista.appendChild(fila);
+  }
+}
+
+$("registro").addEventListener("toggle", () => { if ($("registro").open) cargarRegistro(); });
+let tRegistro;
+$("r-dni").addEventListener("input", () => { clearTimeout(tRegistro); tRegistro = setTimeout(cargarRegistro, 300); });
+$("r-tipo").addEventListener("change", cargarRegistro);
+$("b-ver-registro").onclick = () => {
+  $("r-dni").value = editando.dni || "";
+  $("r-tipo").value = "todos";
+  cerrarFormulario();
+  $("registro").open = true;
+  cargarRegistro();
+  $("registro").scrollIntoView({ behavior: "smooth" });
+};
+
+function abrirFormulario(p) {
+  editando = p;
+  $("f-titulo").textContent = p ? "Editar persona" : "Nueva persona";
+  $("f-nombre").value = p ? p.nombre : "";
+  $("f-dni").value = p && p.dni ? p.dni : "";
+  $("f-total").value = p ? p.total : 1;
+  $("f-info").textContent = p
+    ? `Retiró ${p.total - p.restantes} de ${p.total}. ${p.tiene_clave ? "Ya creó su contraseña." : "Todavía no ingresó."}`
+    : "Sin DNI no puede entrar al portal, pero el asador lo encuentra buscando por nombre.";
+  $("e-form").textContent = "";
+  $("acciones-extra").classList.toggle("oculto", !p);
+  $("b-reset").classList.toggle("oculto", !p || !p.tiene_clave);
+  $("b-ver-registro").classList.toggle("oculto", !p || !p.dni);
+  $("f-persona").classList.remove("oculto");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  (p && !p.dni ? $("f-dni") : $("f-nombre")).focus();
+}
+
+function cerrarFormulario() {
+  editando = null;
+  $("f-persona").classList.add("oculto");
+}
+
+$("f-persona").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("b-guardar").disabled = true;
+  $("e-form").textContent = "";
+  try {
+    const datos = { nombre: $("f-nombre").value, dni: $("f-dni").value, total: $("f-total").value };
+    if (editando) datos.id = editando.id;
+    const { persona } = await api("/api/admin/guardar", datos);
+    cerrarFormulario();
+    avisar(`Guardado: ${persona.nombre} (${persona.restantes}/${persona.total})`);
+    await cargar();
+  } catch (e) {
+    if (e.estado === 401) { mostrar("pin"); return; }
+    $("e-form").textContent = e.message;
+  } finally { $("b-guardar").disabled = false; }
+};
+
+$("b-cancelar").onclick = cerrarFormulario;
+$("b-nueva").onclick = () => abrirFormulario(null);
+
+$("b-reset").onclick = async () => {
+  if (!confirm(`¿Resetear la contraseña de ${editando.nombre}? Va a poder entrar de nuevo con su DNI.`)) return;
+  try {
+    await api("/api/admin/reset-clave", { id: editando.id });
+    avisar(`Contraseña reseteada: ${editando.nombre}`);
+    cerrarFormulario();
+    await cargar();
+  } catch (e) { $("e-form").textContent = e.message; }
+};
+
+$("b-borrar").onclick = async () => {
+  if (!confirm(`¿Borrar a ${editando.nombre}? No se puede deshacer.`)) return;
+  try {
+    await api("/api/admin/borrar", { id: editando.id });
+    avisar(`Borrado: ${editando.nombre}`);
+    cerrarFormulario();
+    await cargar();
+  } catch (e) { $("e-form").textContent = e.message; }
+};
+
+$("buscar").addEventListener("input", pintar);
+$("solo-sin-dni").addEventListener("change", pintar);
+
+$("f-pin").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("e-pin").textContent = "";
+  try {
+    await api("/api/admin/login", { pin: $("pin").value });
+    $("pin").value = "";
+    await cargar();
+  } catch (e) { $("e-pin").textContent = e.message; }
+};
+
+$("b-salir").onclick = async () => {
+  await api("/api/logout").catch(() => {});
+  mostrar("pin");
+};
+
+cargar();
+</script>
+</body>
+</html>
