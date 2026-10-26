@@ -581,7 +581,10 @@ class Handler(BaseHTTPRequestHandler):
         p = self.requiere_persona()
         if p["clave_hash"] is None:
             return self.json(200, {"debe_cambiar": True, "nombre": p["nombre"]})
-        self.json(200, {"debe_cambiar": False, "reservas_cerradas": RESERVAS_CERRADAS, **publico(p)})
+        entregados = db.execute(
+            "select coalesce(sum(case tipo when 'entrega' then 1 else -1 end), 0) from entregas where persona_id = ?",
+            (p["id"],)).fetchone()[0]
+        self.json(200, {"debe_cambiar": False, "reservas_cerradas": RESERVAS_CERRADAS, "entregados": entregados, **publico(p)})
 
     def api_logout(self):
         s = self.sesion()

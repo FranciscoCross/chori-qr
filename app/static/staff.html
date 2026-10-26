@@ -125,6 +125,34 @@ async function api(ruta, datos) {
 
 function vibrar(patron) { if (navigator.vibrate) navigator.vibrate(patron); }
 
+// Pitidos de 8 bits: en iPhone el navegador no vibra, y en la parrilla no siempre se mira la pantalla.
+let audio = null;
+const TONOS = {
+  ok: [[660, .08], [880, .12]],
+  mal: [[220, .18], [150, .32]],
+  entregado: [[523, .07], [659, .07], [784, .07], [1047, .18]],
+};
+function sonar(tipo) {
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === "suspended") audio.resume();
+    let t = audio.currentTime;
+    for (const [frecuencia, duracion] of TONOS[tipo]) {
+      const osc = audio.createOscillator(), vol = audio.createGain();
+      osc.type = "square";
+      osc.frequency.value = frecuencia;
+      vol.gain.setValueAtTime(0.15, t);
+      vol.gain.exponentialRampToValueAtTime(0.001, t + duracion);
+      osc.connect(vol).connect(audio.destination);
+      osc.start(t);
+      osc.stop(t + duracion);
+      t += duracion;
+    }
+  } catch { /* sin audio: queda la vibración y el color */ }
+}
+// iOS solo habilita el audio después de un toque del usuario.
+document.addEventListener("pointerdown", () => { try { audio ??= new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {} }, { once: true });
+
 // ---------- PIN ----------
 function mostrarPin(mensaje = "") {
   $("pantalla-scan").classList.add("oculto");
@@ -225,7 +253,7 @@ function escapar(s) {
 
 function manejarError(e, reintentar) {
   if (e instanceof PinInvalido) { detenerCamara(); mostrarPin("La sesión venció. Ingrese el PIN de nuevo."); return; }
-  vibrar([100, 50, 100]);
+  vibrar([100, 50, 100]); sonar("mal");
   mostrarTarjeta("mal", `<div class="estado">Error de conexión</div><p>${escapar(e.message)}</p>
     <div class="fila"><button id="b-reintentar" class="primario">Reintentar</button><button id="b-sig">Cancelar</button></div>`);
   $("b-reintentar").onclick = reintentar;
@@ -234,7 +262,7 @@ function manejarError(e, reintentar) {
 
 async function consultar(id) {
   if (!UUID_RE.test(id)) {
-    vibrar([200, 100, 200]);
+    vibrar([200, 100, 200]); sonar("mal");
     mostrarTarjeta("mal", `<div class="estado">QR no válido</div><p>Este código no es de la parrilla.</p>
       <button id="b-sig">Escanear otro</button>`);
     $("b-sig").onclick = siguiente;
@@ -244,7 +272,7 @@ async function consultar(id) {
   try {
     const { persona: p } = await api("consultar", { id });
     if (!p) {
-      vibrar([200, 100, 200]);
+      vibrar([200, 100, 200]); sonar("mal");
       mostrarTarjeta("mal", `<div class="estado">No registrado</div><p>Este QR no está en la lista.</p>
         <button id="b-sig">Escanear otro</button>`);
       $("b-sig").onclick = siguiente;
@@ -258,7 +286,7 @@ async function consultar(id) {
 
 function mostrarPersona(id, p) {
   if (p.restantes > 0) {
-    vibrar(80);
+    vibrar(80); sonar("ok");
     mostrarTarjeta("ok", `<div class="estado"><svg class="ico" width="32" height="32" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true" fill="#5bd16b"><rect x="6" y="1" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="2" y="5" width="2" height="1"/></svg>PUEDE RETIRAR</div>
       <div class="nombre">${escapar(p.nombre)}</div><div class="saldo">${textoSaldo(p)}</div>
       <div class="fila"><button id="b-entregar" class="ok">Entregar 1 chori</button></div>
@@ -266,7 +294,7 @@ function mostrarPersona(id, p) {
     $("b-entregar").onclick = () => entregar(id);
     $("b-sig").onclick = siguiente;
   } else {
-    vibrar([300, 100, 300]);
+    vibrar([300, 100, 300]); sonar("mal");
     mostrarTarjeta("mal", `<div class="estado"><svg class="ico" width="32" height="32" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true" fill="#ff6b4a"><rect x="1" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="3" y="3" width="2" height="2"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="2" y="5" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/></svg>SIN CHORIS</div>
       <div class="nombre">${escapar(p.nombre)}</div><div class="saldo">Ya retiró los ${p.total} que tenía</div>
       <div class="fila"><button id="b-sig">Escanear otro</button></div>`);
@@ -279,7 +307,7 @@ async function entregar(id) {
   try {
     const { ok, persona: r } = await api("entregar", { id, dispositivo });
     if (!ok) { mostrarPersona(id, r || { nombre: "?", restantes: 0, total: 0 }); return; }
-    vibrar(150);
+    vibrar(150); sonar("entregado");
     mostrarTarjeta("ok", `<div class="estado"><svg class="ico" width="40" height="20" viewBox="0 0 16 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="4" width="14" height="3" fill="#d9a05b"/><rect x="0" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="15" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="1" y="7" width="14" height="1" fill="#8a5a2b"/><rect x="2" y="2" width="12" height="3" fill="#b8432f"/><rect x="1" y="3" width="1" height="1" fill="#b8432f"/><rect x="14" y="3" width="1" height="1" fill="#b8432f"/><rect x="3" y="2" width="9" height="1" fill="#e0704f"/><rect x="3" y="3" width="2" height="1" fill="#ffd23f"/><rect x="7" y="3" width="2" height="1" fill="#ffd23f"/><rect x="11" y="3" width="2" height="1" fill="#ffd23f"/></svg>ENTREGADO</div>
       <div class="nombre">${escapar(r.nombre)}</div><div class="saldo">${textoSaldo(r)}</div>
       <div class="fila"><button id="b-sig" class="primario">Siguiente</button></div>

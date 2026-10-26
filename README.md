@@ -28,6 +28,11 @@ evento: bebidas, entradas a un buffet, kits, etc.
   como usuario y contraseña, y la app les pide elegir una contraseña propia.
   Si el DNI no tiene cuenta, lo dice ("Cuenta inexistente") y sugiere crearla.
 - Muestra el QR personal y cuántos choris le quedan.
+- **QR grande** a pantalla completa con fondo blanco, para escanear rápido con
+  humo o poca luz. Mantiene la pantalla encendida mientras está abierto.
+- **Aviso de entrega:** cuando el asador descuenta, el portal se pone verde y
+  dice "¡Entregado!" con lo que le queda.
+- Funciona sin señal: el QR ya está dibujado y un aviso lo indica.
 - **Crear cuenta:** quien no estaba en la lista se registra con su DNI y una
   contraseña, y sube el comprobante de pago (foto o PDF, hasta 8 MB). Un
   organizador lo aprueba con la cantidad que corresponda o lo rechaza con un
@@ -42,6 +47,7 @@ evento: bebidas, entradas a un buffet, kits, etc.
 ### Escáner del asador (`/staff`)
 
 - Se entra con un PIN compartido por el personal.
+- Pitidos de 8 bits y vibración al aprobar, rechazar y entregar.
 - Escanea el QR con la cámara trasera y muestra el nombre y el saldo con un
   ✔ verde o un ✖ rojo.
 - Botón para entregar, deshacer la última entrega y buscar por nombre por si

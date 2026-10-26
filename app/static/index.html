@@ -109,11 +109,28 @@
   .item .info-item { display: flex; flex-direction: column; gap: 2px; }
   .aviso-ok { color: var(--ok-texto); min-height: 1.4em; margin: 0 0 10px; }
   #v-login .secundario, #v-registro .secundario { display: block; margin: 20px auto 0; font-size: 10px; }
+  .aviso-red { position: sticky; top: 8px; z-index: 5; background: var(--mal-bg); border: 4px solid var(--mal); color: var(--mal-texto);
+    padding: 10px 14px; margin: 0 0 18px; box-shadow: 4px 4px 0 var(--tinta); }
+  .aviso-entrega { width: 100%; background: var(--ok-bg); border: 4px solid var(--ok); color: var(--ok-texto); margin: 0 0 20px;
+    font: 12px/1.7 var(--pixel); text-transform: none; box-shadow: 6px 6px 0 var(--tinta); padding: 14px; }
+  body.ocupado button { pointer-events: none; }
+  #b-agrandar { margin: -6px 0 20px; }
+  #qr-grande { position: fixed; inset: 0; z-index: 10; background: #fff; color: #000; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); text-align: center; }
+  #qr-grande img, #qr-grande canvas { width: min(92vw, 62vh); height: auto; image-rendering: pixelated; }
+  #g-nombre { font: 14px/1.6 var(--pixel); }
+  #g-saldo { font: 30px/1.2 var(--cuerpo); }
+  #g-estado { display: none; font: 18px/1.7 var(--pixel); color: #0d2a14; }
+  #qr-grande.entregado { background: var(--ok); }
+  #qr-grande.entregado #g-qr { display: none; }
+  #qr-grande.entregado #g-estado { display: block; }
+  #qr-grande button { width: auto; min-width: 180px; }
   .separador { height: 4px; margin: 16px 0; background: repeating-linear-gradient(90deg, #5a3a26 0 8px, transparent 8px 16px); }
 </style>
 </head>
 <body>
 <main>
+  <p id="aviso-red" class="aviso-red oculto" role="status">Sin conexión. Su QR sigue sirviendo: muéstrelo igual en la parrilla. El saldo se actualiza cuando vuelva la señal.</p>
   <section id="v-login" class="oculto">
     <h1><svg class="ico" width="40" height="20" viewBox="0 0 16 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="4" width="14" height="3" fill="#d9a05b"/><rect x="0" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="15" y="5" width="1" height="2" fill="#8a5a2b"/><rect x="1" y="7" width="14" height="1" fill="#8a5a2b"/><rect x="2" y="2" width="12" height="3" fill="#b8432f"/><rect x="1" y="3" width="1" height="1" fill="#b8432f"/><rect x="14" y="3" width="1" height="1" fill="#b8432f"/><rect x="3" y="2" width="9" height="1" fill="#e0704f"/><rect x="3" y="3" width="2" height="1" fill="#ffd23f"/><rect x="7" y="3" width="2" height="1" fill="#ffd23f"/><rect x="11" y="3" width="2" height="1" fill="#ffd23f"/></svg> MIS CHORIS</h1>
     <p class="sub">Ingrese con su DNI (sin puntos). Si compró antes del evento, la primera vez la contraseña también es su DNI.</p>
@@ -161,7 +178,9 @@
 
   <section id="v-qr" class="oculto">
     <h1 id="q-nombre"></h1>
+    <button type="button" id="aviso-entrega" class="aviso-entrega oculto" role="status"></button>
     <div class="qr" id="qr"></div>
+    <button type="button" id="b-agrandar" class="primario">Mostrar QR grande</button>
     <div class="saldo" id="saldo"></div>
     <p class="ayuda">Muestre este QR en la parrilla. Puede sacarle una captura de pantalla.</p>
 
@@ -225,19 +244,109 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<div id="qr-grande" class="oculto" role="dialog" aria-label="QR para la parrilla">
+  <div id="g-nombre"></div>
+  <div id="g-qr"></div>
+  <div id="g-estado"></div>
+  <div id="g-saldo"></div>
+  <button type="button" id="b-achicar">Cerrar</button>
+</div>
 <script>
 const $ = (id) => document.getElementById(id);
 let qrDibujado = null;
 let refresco = null;
+let ocupado = false;          // evita que un doble toque repita una acción
+let entregadosVistos = null;  // para avisar cuando el asador entrega
+let wakeLock = null;
 
 async function api(ruta, datos) {
-  const r = await fetch(ruta, datos === undefined ? {} : {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos),
-  });
+  let r;
+  try {
+    r = await fetch(ruta, datos === undefined ? {} : {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos),
+    });
+  } catch {
+    const e = new Error("Sin conexión. Su QR sigue sirviendo: muéstrelo igual en la parrilla.");
+    e.estado = 0;
+    throw e;
+  }
   const cuerpo = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(cuerpo.error || "Error de conexión"); e.estado = r.status; throw e; }
+  if (r.status === 401 && ruta !== "/api/login" && ruta !== "/api/yo") sesionVencida();
+  if (!r.ok) { const e = new Error(cuerpo.error || "Error del servidor. Intente de nuevo."); e.estado = r.status; throw e; }
   return cuerpo;
 }
+
+function programarRefresco(ms) { clearInterval(refresco); refresco = setInterval(cargar, ms); }
+
+function sesionVencida() {
+  clearInterval(refresco); refresco = null; qrDibujado = null; entregadosVistos = null;
+  cerrarQrGrande();
+  mostrar("v-login");
+  $("e-login").textContent = "Su sesión venció. Ingrese de nuevo.";
+}
+
+function estadoRed() { $("aviso-red").classList.toggle("oculto", navigator.onLine); }
+addEventListener("offline", estadoRed);
+addEventListener("online", () => { estadoRed(); cargar(); });
+estadoRed();
+
+// ---------- QR grande ----------
+async function abrirQrGrande() {
+  if (!qrDibujado) return;
+  $("qr-grande").classList.remove("entregado");
+  $("g-qr").innerHTML = "";
+  new QRCode($("g-qr"), { text: qrDibujado, width: 600, height: 600, correctLevel: QRCode.CorrectLevel.M });
+  $("g-nombre").textContent = $("q-nombre").textContent;
+  $("qr-grande").classList.remove("oculto");
+  try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { wakeLock = null; }  // pantalla siempre encendida
+  programarRefresco(4000);  // mientras está en la fila, el aviso de entrega llega rápido
+}
+
+function cerrarQrGrande() {
+  if ($("qr-grande").classList.contains("oculto")) return;
+  $("qr-grande").classList.add("oculto");
+  wakeLock?.release().catch(() => {});
+  wakeLock = null;
+  if (refresco) programarRefresco(15000);
+}
+
+$("b-agrandar").onclick = abrirQrGrande;
+$("qr").onclick = abrirQrGrande;
+$("b-achicar").onclick = cerrarQrGrande;
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") cerrarQrGrande(); });
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible" && !$("qr-grande").classList.contains("oculto") && !wakeLock) {
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+  }
+});
+
+// ---------- aviso de entrega ----------
+function leerEntregados(id) { try { const v = localStorage.getItem("chori_entregados_" + id); return v === null ? null : Number(v); } catch { return null; } }
+function guardarEntregados(id, n) { try { localStorage.setItem("chori_entregados_" + id, String(n)); } catch {} }
+
+function revisarEntregas(yo) {
+  if (entregadosVistos === null) entregadosVistos = leerEntregados(yo.id) ?? yo.entregados;
+  if (yo.entregados > entregadosVistos) {
+    const resto = yo.restantes > 0
+      ? `Le queda${yo.restantes === 1 ? "" : "n"} ${yo.restantes}.`
+      : "No le quedan más choris.";
+    const texto = `¡Entregado! Que lo disfrute. ${resto}`;
+    $("aviso-entrega").textContent = texto + " (tocar para cerrar)";
+    $("aviso-entrega").classList.remove("oculto");
+    $("g-estado").textContent = "¡ENTREGADO!";
+    $("g-saldo").textContent = resto;
+    $("qr-grande").classList.add("entregado");
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    setTimeout(cerrarQrGrande, 4000);
+  } else if (!$("qr-grande").classList.contains("entregado")) {
+    $("g-saldo").textContent = yo.restantes > 0
+      ? `${yo.restantes} chori${yo.restantes === 1 ? "" : "s"} disponible${yo.restantes === 1 ? "" : "s"}`
+      : "Sin choris disponibles";
+  }
+  entregadosVistos = yo.entregados;
+  guardarEntregados(yo.id, yo.entregados);
+}
+$("aviso-entrega").onclick = () => $("aviso-entrega").classList.add("oculto");
 
 function mostrar(vista) {
   for (const v of ["v-login", "v-registro", "v-cambiar", "v-qr"]) $(v).classList.toggle("oculto", v !== vista);
@@ -262,9 +371,10 @@ async function cargar() {
     s.innerHTML = yo.restantes > 0
       ? `<b>${yo.restantes}</b> chori${yo.restantes === 1 ? "" : "s"} disponible${yo.restantes === 1 ? "" : "s"} de ${yo.total}`
       : `<b>0</b> ${yo.total === 0 ? (yo.reservas_cerradas ? "Todavía no tiene choris. Puede canjear un código o pedir uno." : "Todavía no tiene choris. Suba su comprobante o canjee un código.") : yo.total === 1 ? "Ya retiró su chori" : `Ya retiró sus ${yo.total} choris`}`;
+    revisarEntregas(yo);
     mostrar("v-qr");
     await Promise.all([cargarIntercambio(), cargarComprobantes()]);
-    if (!refresco) refresco = setInterval(cargar, 15000);
+    if (!refresco) programarRefresco(15000);
   } catch (e) {
     if (e.estado === 401) { clearInterval(refresco); refresco = null; mostrar("v-login"); }
   }
@@ -274,14 +384,22 @@ function leerVisto() { try { return Number(localStorage.getItem("chori_regalo_vi
 function guardarVisto(id) { try { localStorage.setItem("chori_regalo_visto", String(id)); } catch {} }
 
 async function accion(ruta, datos, confirmar, errorId = "e-inter") {
-  if (confirmar && !confirm(confirmar)) return;
-  $(errorId).textContent = "";
+  if (ocupado) return;
+  ocupado = true;
+  document.body.classList.add("ocupado");
   try {
-    await api(ruta, datos || {});
-  } catch (e) {
-    $(errorId).textContent = e.message;
+    if (confirmar && !confirm(confirmar)) return;
+    $(errorId).textContent = "";
+    try {
+      await api(ruta, datos || {});
+    } catch (e) {
+      $(errorId).textContent = e.message;
+    }
+    await cargar();
+  } finally {
+    ocupado = false;
+    document.body.classList.remove("ocupado");
   }
-  await cargar();
 }
 
 function fila(nombre, textoBoton, habilitado, alTocar, nota) {
@@ -592,7 +710,7 @@ $("f-cambiar").onsubmit = async (ev) => {
 
 $("b-salir").onclick = async () => {
   await api("/api/logout", {}).catch(() => {});
-  clearInterval(refresco); refresco = null; qrDibujado = null;
+  clearInterval(refresco); refresco = null; qrDibujado = null; entregadosVistos = null;
   mostrar("v-login");
 };
 
