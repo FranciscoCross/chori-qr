@@ -88,6 +88,8 @@
   .ticket .det { color: var(--suave); }
   .ticket .botones { display: flex; gap: 10px; width: 100%; }
   .ticket .botones button { flex: 1; font-size: 10px; padding: 12px 6px; }
+  .codigos.cerrado form { opacity: .4; filter: grayscale(1); pointer-events: none; }
+  .codigos.cerrado #c-ayuda { color: var(--suave); }
   .estado-chip { font: 9px/1.8 var(--pixel); text-transform: uppercase; padding: 2px 6px; border: 2px solid; white-space: nowrap; }
   .estado-chip.pendiente { color: var(--amarillo); border-color: var(--amarillo); }
   .estado-chip.aprobado { color: var(--ok-texto); border-color: var(--ok); background: var(--ok-bg); }
@@ -259,7 +261,7 @@ async function cargar() {
     s.classList.toggle("cero", yo.restantes === 0);
     s.innerHTML = yo.restantes > 0
       ? `<b>${yo.restantes}</b> chori${yo.restantes === 1 ? "" : "s"} disponible${yo.restantes === 1 ? "" : "s"} de ${yo.total}`
-      : `<b>0</b> ${yo.total === 0 ? "Todavía no tiene choris. Suba su comprobante o canjee un código." : yo.total === 1 ? "Ya retiró su chori" : `Ya retiró sus ${yo.total} choris`}`;
+      : `<b>0</b> ${yo.total === 0 ? (yo.reservas_cerradas ? "Todavía no tiene choris. Puede canjear un código o pedir uno." : "Todavía no tiene choris. Suba su comprobante o canjee un código.") : yo.total === 1 ? "Ya retiró su chori" : `Ya retiró sus ${yo.total} choris`}`;
     mostrar("v-qr");
     await Promise.all([cargarIntercambio(), cargarComprobantes()]);
     if (!refresco) refresco = setInterval(cargar, 15000);
@@ -355,7 +357,11 @@ async function cargarComprobantes() {
   let datos;
   try { datos = await api("/api/comprobantes/mios", {}); } catch { return; }
   const precio = datos.precio.toLocaleString("es-AR");
-  $("c-ayuda").textContent = `Cada chori cuesta $${precio}. Suba el comprobante de su transferencia y un organizador lo revisa.`;
+  $("s-comprobantes").classList.toggle("cerrado", datos.cerrado);
+  for (const el of $("f-comprobante").elements) el.disabled = datos.cerrado;
+  $("c-ayuda").textContent = datos.cerrado
+    ? "La reserva de choris ya cerró: no se reciben más comprobantes."
+    : `Cada chori cuesta $${precio}. Suba el comprobante de su transferencia y un organizador lo revisa.`;
   const lista = $("l-comprobantes");
   lista.innerHTML = "";
   for (const c of datos.comprobantes) {

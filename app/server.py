@@ -9,6 +9,8 @@ Variables de entorno:
     DB_PATH        ruta de la base SQLite (por defecto /data/chori.db)
     PORT           puerto (por defecto 8080)
     COOKIE_SECURE  "0" para probar sin HTTPS (por defecto "1")
+    PRECIO_CHORI   precio por chori que se muestra (por defecto 6000)
+    RESERVAS_CERRADAS  "1" para dejar de recibir comprobantes (por defecto "0")
     HOST_USERS, HOST_STAFF, HOST_ADMIN
                    dominio de cada página; en esos dominios "/" sirve la página
                    correspondiente y solo se expone su API. En cualquier otro
@@ -39,6 +41,7 @@ STATIC = Path(__file__).parent / "static"
 SESION_SEGUNDOS = 3 * 24 * 3600
 TRANSFER_SEGUNDOS = 600
 PRECIO_CHORI = int(os.environ.get("PRECIO_CHORI", "6000"))
+RESERVAS_CERRADAS = os.environ.get("RESERVAS_CERRADAS", "0") == "1"  # "1": no se aceptan más comprobantes
 COMPROBANTES = Path(DB_PATH).parent / "comprobantes"
 MAX_COMPROBANTE = 8 * 1024 * 1024
 MAX_REGISTROS_IP, VENTANA_REGISTROS = 5, 3600
@@ -496,6 +499,9 @@ class Handler(BaseHTTPRequestHandler):
         fn = rutas.get(ruta)
         if not fn or not self.permitido(ruta):
             return self.enviar(404, b"No encontrado", "text/plain; charset=utf-8")
+        if ruta == "/api/comprobantes/subir" and RESERVAS_CERRADAS:
+            self.close_connection = True  # el cuerpo no se lee
+            return self.json(403, {"error": "La reserva de choris ya cerró: no se reciben más comprobantes."})
         if ruta == "/api/comprobantes/subir":
             # El archivo se lee fuera del lock: una subida lenta no traba al resto (el asador escaneando).
             largo = int(self.headers.get("Content-Length") or 0)
@@ -571,7 +577,7 @@ class Handler(BaseHTTPRequestHandler):
         p = self.requiere_persona()
         if p["clave_hash"] is None:
             return self.json(200, {"debe_cambiar": True, "nombre": p["nombre"]})
-        self.json(200, {"debe_cambiar": False, **publico(p)})
+        self.json(200, {"debe_cambiar": False, "reservas_cerradas": RESERVAS_CERRADAS, **publico(p)})
 
     def api_logout(self):
         s = self.sesion()
@@ -651,7 +657,7 @@ class Handler(BaseHTTPRequestHandler):
     def api_mis_comprobantes(self):
         p = self.requiere_participante()
         filas = db.execute("select * from comprobantes where persona_id = ? order by id desc", (p["id"],)).fetchall()
-        self.json(200, {"precio": PRECIO_CHORI, "comprobantes": [
+        self.json(200, {"precio": PRECIO_CHORI, "cerrado": RESERVAS_CERRADAS, "comprobantes": [
             {"id": c["id"], "estado": c["estado"], "pedida": c["cantidad_pedida"], "aprobada": c["cantidad_aprobada"],
              "motivo": c["motivo"], "fecha": time.strftime("%d/%m %H:%M", time.localtime(c["creado"]))}
             for c in filas]})
@@ -664,7 +670,7 @@ class Handler(BaseHTTPRequestHandler):
             "   and o.estado <> 'rechazado' and (o.estado = 'aprobado' or o.id < c.id)) as duplicado_de "
             "from comprobantes c join personas p on p.id = c.persona_id "
             "where c.estado = 'pendiente' order by c.id").fetchall()
-        self.json(200, {"precio": PRECIO_CHORI, "comprobantes": [
+        self.json(200, {"precio": PRECIO_CHORI, "cerrado": RESERVAS_CERRADAS, "comprobantes": [
             {"id": c["id"], "nombre": c["nombre"], "dni": c["dni"], "pedida": c["cantidad_pedida"], "tipo": c["tipo"],
              "total_actual": c["total"], "fecha": time.strftime("%d/%m %H:%M", time.localtime(c["creado"])),
              "duplicado_de": c["duplicado_de"]}

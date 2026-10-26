@@ -30,7 +30,8 @@ evento: bebidas, entradas a un buffet, kits, etc.
 - **Crear cuenta:** quien no estaba en la lista se registra con su DNI y una
   contraseña, y sube el comprobante de pago (foto o PDF, hasta 8 MB). Un
   organizador lo aprueba con la cantidad que corresponda o lo rechaza con un
-  motivo, que el asistente ve en su portal.
+  motivo, que el asistente ve en su portal. La recepción de comprobantes se
+  puede cerrar cuando termina la venta.
 - **Intercambio uno a uno:** genera un código (por ejemplo `K7M-2QX`) para pasarle
   uno o varios choris a otra persona. Sirve una vez y vence a los 10 minutos.
 - **Intercambio global:** cualquiera puede pedir un chori o donar uno, y hay una
@@ -174,7 +175,21 @@ Detrás de un proxy, el servidor toma la IP del cliente de `Cf-Connecting-Ip`
 | `PORT` | `8080` | Puerto del servidor |
 | `COOKIE_SECURE` | `1` | `0` para probar sin HTTPS |
 | `PRECIO_CHORI` | `6000` | Precio que se muestra al subir el comprobante |
+| `RESERVAS_CERRADAS` | `0` | `1` para cerrar la venta: no se reciben más comprobantes (ver abajo) |
 | `HOST_USERS`, `HOST_STAFF`, `HOST_ADMIN` | (vacías) | Un dominio por página |
+
+### Cerrar la venta
+
+Cuando termina la reserva, `RESERVAS_CERRADAS=1` deja de recibir comprobantes:
+la sección "Mis comprobantes" del portal queda en gris (el historial se sigue
+viendo) y el servidor rechaza cualquier subida. Crear cuenta sigue habilitado,
+porque una cuenta nueva todavía puede recibir choris por código o por una
+donación aprobada. Con Docker:
+
+```bash
+echo RESERVAS_CERRADAS=1 >> .env
+docker compose up -d --force-recreate app
+```
 
 Otros valores (intentos antes del bloqueo, minutos de vencimiento de los
 códigos, tamaño máximo del comprobante) son constantes al principio de
