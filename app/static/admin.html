@@ -110,6 +110,18 @@
   .ev .res.bien { color: var(--ok-texto); }
   .ev .res.mal { color: var(--mal-texto); }
   .ev .tipo { font: 9px/1.8 var(--pixel); color: var(--amarillo); text-transform: uppercase; }
+  .totales.caja { grid-template-columns: 1fr; gap: 8px; }
+  .totales.caja div { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; text-align: left; }
+  .totales.caja b { order: 2; font-size: 14px; margin: 0; }
+  .totales.caja span { order: 1; }
+  .totales.caja .saldo-ok b { color: var(--ok); }
+  .totales.caja .saldo-mal b { color: var(--mal); }
+  .gasto-form { border-top: 4px dotted #5a3a26; padding-top: 14px; margin-bottom: 8px; }
+  .gasto-form input[type=file] { font-size: 20px; padding: 8px; }
+  .ev .monto { font: 12px/1.6 var(--pixel); color: var(--acento); white-space: nowrap; }
+  .ev .ops { display: flex; gap: 0 6px; flex-wrap: wrap; align-items: center; }
+  .ev .ops button { white-space: nowrap; }
+  .ev .ops a { font: 9px/1.6 var(--pixel); color: var(--acento); padding: 12px 4px; }
 </style>
 </head>
 <body>
@@ -176,6 +188,38 @@
     </div>
     <label class="filtro"><input type="checkbox" id="solo-sin-dni"> Mostrar solo personas sin DNI</label>
     <div class="lista" id="lista"></div>
+
+    <details class="registro" id="caja">
+      <summary>Caja: recaudado y gastos</summary>
+      <div class="cuerpo">
+        <div class="totales caja">
+          <div><b id="k-recaudado">$0</b><span>recaudado</span></div>
+          <div><b id="k-gastado">$0</b><span>gastos</span></div>
+          <div id="k-saldo-caja"><b id="k-saldo">$0</b><span>queda</span></div>
+        </div>
+        <p class="info" id="k-info"></p>
+        <form id="f-gasto" class="gasto-form" autocomplete="off">
+          <label for="g-desc">Nuevo gasto</label>
+          <input id="g-desc" required maxlength="120" placeholder="Ej.: 10 kg de carbón">
+          <div class="grupo">
+            <div>
+              <label for="g-pago">Pagó (opcional)</label>
+              <input id="g-pago" maxlength="80" placeholder="Quién lo pagó">
+            </div>
+            <div>
+              <label for="g-monto">Monto $</label>
+              <input id="g-monto" type="number" inputmode="numeric" min="1" step="1" required>
+            </div>
+          </div>
+          <label for="g-ticket">Ticket (opcional)</label>
+          <input id="g-ticket" type="file" accept="image/*,application/pdf">
+          <p class="error" id="e-gasto"></p>
+          <button class="primario" id="b-gasto">Agregar gasto</button>
+        </form>
+        <div id="l-gastos"></div>
+        <input id="g-adjuntar" type="file" accept="image/*,application/pdf" class="oculto">
+      </div>
+    </details>
 
     <details class="registro" id="entregas">
       <summary>Entregas</summary>
@@ -412,7 +456,113 @@ setInterval(() => {
   if (!$("v-panel").classList.contains("oculto") && $("f-persona").classList.contains("oculto")) cargar();
   if ($("registro").open) cargarRegistro();
   if ($("entregas").open) cargarEntregas();
+  if ($("caja").open) cargarCaja();
 }, 30000);
+
+const pesos = (n) => (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("es-AR");
+
+async function subirTicket(id, archivo) {
+  if (archivo.size > 8 * 1024 * 1024) throw new Error("El ticket supera los 8 MB.");
+  const r = await fetch(`/api/admin/gastos/ticket?id=${encodeURIComponent(id)}`, { method: "POST", body: archivo });
+  const res = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(res.error || "No se pudo subir el ticket."); e.estado = r.status; throw e; }
+}
+
+async function cargarCaja() {
+  let datos;
+  try {
+    datos = await api("/api/admin/caja");
+  } catch (e) {
+    if (e.estado === 401) mostrar("pin"); else $("k-info").textContent = e.message;
+    return;
+  }
+  $("k-recaudado").textContent = pesos(datos.recaudado);
+  $("k-gastado").textContent = pesos(datos.gastado);
+  $("k-saldo").textContent = pesos(datos.saldo);
+  $("k-saldo-caja").className = datos.saldo < 0 ? "saldo-mal" : "saldo-ok";
+  $("k-info").textContent = `Recaudado: ${datos.choris} chori${datos.choris === 1 ? "" : "s"} pagados por adelantado × ${pesos(datos.precio)}.`
+    + (datos.gastos.length ? ` ${datos.gastos.length} gasto${datos.gastos.length === 1 ? "" : "s"} cargado${datos.gastos.length === 1 ? "" : "s"}.` : "");
+  const lista = $("l-gastos");
+  lista.innerHTML = "";
+  if (!datos.gastos.length) lista.innerHTML = `<p class="info">Todavía no hay gastos cargados.</p>`;
+  for (const g of datos.gastos) {
+    const fila = document.createElement("div");
+    fila.className = "ev";
+    const arriba = document.createElement("div");
+    arriba.className = "arriba";
+    const fecha = document.createElement("span");
+    fecha.textContent = g.fecha + (g.pagado_por ? ` · pagó ${g.pagado_por}` : "");
+    const monto = document.createElement("span");
+    monto.className = "monto";
+    monto.textContent = pesos(g.monto);
+    arriba.append(fecha, monto);
+    const quien = document.createElement("div");
+    quien.className = "quien";
+    quien.textContent = g.descripcion;
+    const ops = document.createElement("div");
+    ops.className = "ops";
+    if (g.tipo) {
+      const ver = document.createElement("a");
+      ver.href = `/api/admin/ticket/${g.id}`;
+      ver.target = "_blank";
+      ver.rel = "noopener";
+      ver.textContent = g.tipo === "application/pdf" ? "Ver ticket (PDF)" : "Ver ticket";
+      ops.appendChild(ver);
+    }
+    const adjuntar = document.createElement("button");
+    adjuntar.className = "link";
+    adjuntar.textContent = g.tipo ? "Cambiar ticket" : "Adjuntar ticket";
+    adjuntar.onclick = () => { $("g-adjuntar").dataset.id = g.id; $("g-adjuntar").click(); };
+    const borrar = document.createElement("button");
+    borrar.className = "peligro";
+    borrar.textContent = "Borrar";
+    borrar.onclick = async () => {
+      if (!confirm(`¿Borrar el gasto "${g.descripcion}" (${pesos(g.monto)})? No se puede deshacer.`)) return;
+      try {
+        await api("/api/admin/gastos/borrar", { id: g.id });
+        avisar(`Gasto borrado: ${g.descripcion}`);
+      } catch (e) { if (e.estado === 401) { mostrar("pin"); return; } alert(e.message); }
+      cargarCaja();
+    };
+    ops.append(adjuntar, borrar);
+    fila.append(arriba, quien, ops);
+    lista.appendChild(fila);
+  }
+}
+
+$("caja").addEventListener("toggle", () => { if ($("caja").open) cargarCaja(); });
+
+$("f-gasto").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("e-gasto").textContent = "";
+  const boton = $("b-gasto"); boton.disabled = true; boton.textContent = "Guardando…";
+  const archivo = $("g-ticket").files[0];
+  try {
+    const { id } = await api("/api/admin/gastos/agregar",
+      { descripcion: $("g-desc").value, pagado_por: $("g-pago").value, monto: $("g-monto").value });
+    $("f-gasto").reset();
+    if (archivo) {
+      try { await subirTicket(id, archivo); }
+      catch (e) { $("e-gasto").textContent = `El gasto se guardó, pero el ticket no se pudo subir: ${e.message} Puede adjuntarlo desde la lista.`; }
+    }
+    await cargarCaja();
+  } catch (e) {
+    if (e.estado === 401) { mostrar("pin"); return; }
+    $("e-gasto").textContent = e.message;
+  } finally { boton.disabled = false; boton.textContent = "Agregar gasto"; }
+};
+
+$("g-adjuntar").addEventListener("change", async () => {
+  const entrada = $("g-adjuntar");
+  const archivo = entrada.files[0];
+  if (!archivo) return;
+  try {
+    await subirTicket(entrada.dataset.id, archivo);
+    avisar("Ticket adjuntado.");
+  } catch (e) { if (e.estado === 401) { mostrar("pin"); return; } alert(e.message); }
+  entrada.value = "";
+  cargarCaja();
+});
 
 async function cargarEntregas() {
   let datos;
@@ -460,6 +610,7 @@ const EVENTOS = {
   RESET_CLAVE_ADMIN: "Reseteo de contraseña (admin)", DESBLOQUEO_ADMIN: "Desbloqueo (admin)",
   REGISTRO: "Cuenta nueva", COMPROBANTE_SUBIDO: "Comprobante subido",
   COMPROBANTE_APROBADO: "Comprobante aprobado", COMPROBANTE_RECHAZADO: "Comprobante rechazado",
+  GASTO_AGREGADO: "Gasto cargado (admin)", GASTO_BORRADO: "Gasto borrado (admin)", TICKET_GASTO: "Ticket de gasto (admin)",
 };
 const RESULTADOS = {
   ok: "correcto", ok_primer_ingreso: "primer ingreso", clave_incorrecta: "contraseña incorrecta",
@@ -473,6 +624,7 @@ const RESULTADOS = {
 function textoResultado(ev) {
   if (ev.evento === "CAMBIO_CLAVE") return ev.detalle === "primera_vez=si" ? "creó su contraseña" : "cambió su contraseña";
   if (ev.evento === "DESBLOQUEO_ADMIN") return (ev.detalle || "").replace("bloqueo=", "liberó ");
+  if (ev.evento.includes("GASTO")) return (ev.detalle || "").replaceAll("_", " ").replace("gasto=", "gasto #");
   if (!ev.resultado) return ev.detalle || "";
   const base = ev.resultado.replace("+bloqueo", "");
   let t = RESULTADOS[base] || base;

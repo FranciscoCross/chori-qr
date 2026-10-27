@@ -9,7 +9,7 @@ Variables de entorno:
     DB_PATH        ruta de la base SQLite (por defecto /data/chori.db)
     PORT           puerto (por defecto 8080)
     COOKIE_SECURE  "0" para probar sin HTTPS (por defecto "1")
-    PRECIO_CHORI   precio por chori que se muestra (por defecto 6000)
+    PRECIO_CHORI   precio por chori, también para calcular lo recaudado (por defecto 6000)
     RESERVAS_CERRADAS  "1" para dejar de recibir comprobantes (por defecto "0")
     HOST_USERS, HOST_STAFF, HOST_ADMIN
                    dominio de cada página; en esos dominios "/" sirve la página
@@ -45,6 +45,7 @@ PRECIO_CHORI = int(os.environ.get("PRECIO_CHORI", "6000"))
 RESERVAS_CERRADAS = os.environ.get("RESERVAS_CERRADAS", "0") == "1"  # "1": no se aceptan más comprobantes
 COMPROBANTES = Path(DB_PATH).parent / "comprobantes"
 MAX_COMPROBANTE = 8 * 1024 * 1024
+TICKETS = Path(DB_PATH).parent / "tickets"  # tickets de gastos de la organización
 MAX_REGISTROS_IP, VENTANA_REGISTROS = 5, 3600
 registros_ip: dict[str, list[float]] = {}
 ALFABETO_CODIGO = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # sin 0/O, 1/I/L
@@ -129,6 +130,16 @@ create table if not exists comprobantes (
   motivo            text,
   creado            real not null,
   resuelto          real
+);
+-- Gastos de la organización (carbón, pan, chorizos...). El ticket es opcional.
+create table if not exists gastos (
+  id          integer primary key,
+  descripcion text not null,
+  monto       int  not null check (monto > 0),
+  pagado_por  text,
+  archivo     text,
+  tipo        text,
+  creado      real not null
 );
 -- Registro de accesos (ver Handler.auditar). Datos personales: borrar después del evento.
 create table if not exists auditoria (
@@ -454,6 +465,8 @@ class Handler(BaseHTTPRequestHandler):
             self.despachar(self.api_yo)
         elif ruta.startswith("/api/admin/comprobante/") and self.permitido(ruta):
             self.despachar(lambda: self.api_admin_ver_comprobante(ruta.rsplit("/", 1)[1]))
+        elif ruta.startswith("/api/admin/ticket/") and self.permitido(ruta):
+            self.despachar(lambda: self.api_admin_ver_ticket(ruta.rsplit("/", 1)[1]))
         elif ruta == "/salud":
             self.enviar(200, b"ok", "text/plain")
         else:
@@ -479,6 +492,10 @@ class Handler(BaseHTTPRequestHandler):
             "/api/admin/desbloquear": self.api_admin_desbloquear,
             "/api/admin/auditoria": self.api_admin_auditoria,
             "/api/admin/entregas": self.api_admin_entregas,
+            "/api/admin/caja": self.api_admin_caja,
+            "/api/admin/gastos/agregar": self.api_admin_agregar_gasto,
+            "/api/admin/gastos/ticket": self.api_admin_ticket_gasto,
+            "/api/admin/gastos/borrar": self.api_admin_borrar_gasto,
             "/api/intercambio/estado": self.api_intercambio_estado,
             "/api/intercambio/pedir": self.api_pedir,
             "/api/intercambio/cancelar-pedido": self.api_cancelar_pedido,
@@ -504,7 +521,7 @@ class Handler(BaseHTTPRequestHandler):
         if ruta == "/api/comprobantes/subir" and RESERVAS_CERRADAS:
             self.close_connection = True  # el cuerpo no se lee
             return self.json(403, {"error": "La reserva de choris ya cerró: no se reciben más comprobantes."})
-        if ruta == "/api/comprobantes/subir":
+        if ruta in ("/api/comprobantes/subir", "/api/admin/gastos/ticket"):
             # El archivo se lee fuera del lock: una subida lenta no traba al resto (el asador escaneando).
             largo = int(self.headers.get("Content-Length") or 0)
             if largo > MAX_COMPROBANTE:
@@ -693,6 +710,91 @@ class Handler(BaseHTTPRequestHandler):
         datos = (COMPROBANTES / c["archivo"]).read_bytes()
         self.enviar(200, datos, c["tipo"], {
             "Content-Disposition": f'inline; filename="comprobante-{c["id"]}.{c["archivo"].rsplit(".", 1)[1]}"',
+            "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; plugin-types application/pdf",
+        })
+
+    # ---------- caja: recaudación y gastos ----------
+    def api_admin_caja(self):
+        """Recaudado (choris vendidos x precio), gastos y saldo."""
+        self.requiere_staff(2)
+        vencer_transferencias()
+        # Igual que el total de choris del panel: lo de cada persona más lo que está en oferta o en un código.
+        choris = db.execute(
+            "select (select coalesce(sum(total), 0) from personas)"
+            " + (select count(*) from ofertas where estado = 'abierta')"
+            " + (select coalesce(sum(cantidad), 0) from transferencias where estado = 'pendiente')"
+        ).fetchone()[0]
+        filas = db.execute("select * from gastos order by id desc").fetchall()
+        recaudado = choris * PRECIO_CHORI
+        gastado = sum(g["monto"] for g in filas)
+        self.json(200, {"precio": PRECIO_CHORI, "choris": choris, "recaudado": recaudado, "gastado": gastado,
+                        "saldo": recaudado - gastado, "gastos": [
+            {"id": g["id"], "descripcion": g["descripcion"], "monto": g["monto"], "pagado_por": g["pagado_por"],
+             "fecha": time.strftime("%d/%m %H:%M", time.localtime(g["creado"])), "tipo": g["tipo"]}
+            for g in filas]})
+
+    def api_admin_agregar_gasto(self):
+        self.requiere_staff(2)
+        datos = self.leer_json()
+        descripcion = " ".join(str(datos.get("descripcion") or "").split())[:120]
+        pagado_por = " ".join(str(datos.get("pagado_por") or "").split())[:80] or None
+        try:
+            monto = int(datos.get("monto"))
+        except (TypeError, ValueError):
+            monto = 0
+        if not descripcion:
+            raise ErrorApi(400, "Escriba en qué se gastó.")
+        if not 1 <= monto <= 100_000_000:
+            raise ErrorApi(400, "Indique el monto en pesos, sin centavos.")
+        cur = db.execute("insert into gastos (descripcion, monto, pagado_por, creado) values (?, ?, ?, ?)",
+                         (descripcion, monto, pagado_por, time.time()))
+        self.auditar("GASTO_AGREGADO", resultado="ok", gasto=cur.lastrowid, monto=monto)
+        self.json(200, {"id": cur.lastrowid})
+
+    def api_admin_ticket_gasto(self):
+        """Adjunta (o reemplaza) el ticket de un gasto. Cuerpo: el archivo; ?id= el gasto."""
+        self.requiere_staff(2)
+        gid = (self.path.split("id=", 1) + [""])[1].split("&")[0]
+        g = db.execute("select * from gastos where id = ?", (gid,)).fetchone()
+        if not g:
+            raise ErrorApi(404, "Gasto no encontrado.")
+        datos = getattr(self, "archivo", b"")
+        if not datos:
+            raise ErrorApi(400, "Falta el archivo.")
+        tipo = tipo_archivo(datos)
+        if not tipo:
+            raise ErrorApi(400, "Formato no admitido. Suba una foto (JPG, PNG, WEBP, HEIC) o un PDF.")
+        TICKETS.mkdir(mode=0o700, exist_ok=True)
+        archivo = f"{uuid.uuid4().hex}.{tipo[1]}"
+        ruta = TICKETS / archivo
+        ruta.write_bytes(datos)
+        ruta.chmod(0o600)
+        db.execute("update gastos set archivo = ?, tipo = ? where id = ?", (archivo, tipo[0], g["id"]))
+        if g["archivo"]:
+            (TICKETS / g["archivo"]).unlink(missing_ok=True)
+        self.auditar("TICKET_GASTO", resultado="ok", gasto=g["id"])
+        self.json(200, {"ok": True})
+
+    def api_admin_borrar_gasto(self):
+        self.requiere_staff(2)
+        g = db.execute("select * from gastos where id = ?", (self.leer_json().get("id"),)).fetchone()
+        if not g:
+            raise ErrorApi(404, "Gasto no encontrado.")
+        db.execute("delete from gastos where id = ?", (g["id"],))
+        if g["archivo"]:
+            (TICKETS / g["archivo"]).unlink(missing_ok=True)
+        self.auditar("GASTO_BORRADO", resultado="ok", gasto=g["id"], monto=g["monto"],
+                     descripcion=g["descripcion"].replace(" ", "_")[:40])
+        self.json(200, {"ok": True})
+
+    def api_admin_ver_ticket(self, gid: str):
+        self.requiere_staff(2)
+        g = db.execute("select * from gastos where id = ? and archivo is not null", (gid,)).fetchone()
+        if not g:
+            raise ErrorApi(404, "Ticket no encontrado.")
+        datos = (TICKETS / g["archivo"]).read_bytes()
+        self.enviar(200, datos, g["tipo"], {
+            "Content-Disposition": f'inline; filename="ticket-{g["id"]}.{g["archivo"].rsplit(".", 1)[1]}"',
             "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; plugin-types application/pdf",
         })
 
@@ -1110,7 +1212,7 @@ class Handler(BaseHTTPRequestHandler):
         elif tipo == "claves":
             condiciones.append("a.evento in ('CAMBIO_CLAVE', 'RESET_CLAVE_ADMIN')")
         elif tipo == "admin":
-            condiciones.append("a.evento like '%ADMIN%' or a.evento = 'LOGIN_ASADOR'")
+            condiciones.append("a.evento like '%ADMIN%' or a.evento = 'LOGIN_ASADOR' or a.evento like '%GASTO%'")
         donde = ("where " + " and ".join(f"({c})" for c in condiciones)) if condiciones else ""
         filas = db.execute(
             f"select a.*, p.nombre from auditoria a left join personas p on p.dni = a.dni {donde} "

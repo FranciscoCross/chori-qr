@@ -61,6 +61,9 @@ evento: bebidas, entradas a un buffet, kits, etc.
   se subió antes (se compara el hash SHA-256), y botones para aprobar o rechazar.
 - Agregar personas, completar el DNI, cambiar cantidades y resetear contraseñas.
 - Lista de bloqueados con botón para desbloquear.
+- Caja: lo recaudado (choris pagados por adelantado × `PRECIO_CHORI`), los gastos
+  de la organización y lo que queda. Cada gasto lleva descripción, monto, quién
+  lo pagó (opcional) y el ticket en foto o PDF (opcional, se puede adjuntar después).
 - Entregas: quién retiró cada chori, a qué hora y desde qué celular, con filtro
   por nombre o DNI. Las entregas deshechas también quedan registradas.
 - Registro de accesos: cada ingreso, cambio de contraseña y acción del admin, con
@@ -180,10 +183,10 @@ Detrás de un proxy, el servidor toma la IP del cliente de `Cf-Connecting-Ip`
 |---|---|---|
 | `STAFF_PIN` | (obligatoria) | PIN del escáner del asador |
 | `ADMIN_PIN` | (obligatoria) | PIN del panel de admin; tiene que ser distinto de `STAFF_PIN` |
-| `DB_PATH` | `/data/chori.db` | Base SQLite; los comprobantes van en `comprobantes/` al lado |
+| `DB_PATH` | `/data/chori.db` | Base SQLite; los comprobantes y los tickets de gastos van en `comprobantes/` y `tickets/` al lado |
 | `PORT` | `8080` | Puerto del servidor |
 | `COOKIE_SECURE` | `1` | `0` para probar sin HTTPS |
-| `PRECIO_CHORI` | `6000` | Precio que se muestra al subir el comprobante |
+| `PRECIO_CHORI` | `6000` | Precio por chori: se muestra al subir el comprobante y calcula lo recaudado en la caja |
 | `RESERVAS_CERRADAS` | `0` | `1` para cerrar la venta: no se reciben más comprobantes (ver abajo) |
 | `HOST_USERS`, `HOST_STAFF`, `HOST_ADMIN` | (vacías) | Un dominio por página |
 
