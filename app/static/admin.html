@@ -116,6 +116,13 @@
   .totales.caja span { order: 1; }
   .totales.caja .saldo-ok b { color: var(--ok); }
   .totales.caja .saldo-mal b { color: var(--mal); }
+  .costo { border-top: 4px dotted #5a3a26; padding-top: 14px; margin-bottom: 8px; }
+  .costo select { font: 22px var(--cuerpo); background: var(--bg); color: var(--texto); border: 4px solid var(--tinta);
+    padding: 8px; border-radius: 0; width: 100%; }
+  .por-persona summary { font: 9px/1.6 var(--pixel); color: var(--acento); padding: 10px 0; cursor: pointer; }
+  .ev .dif { font-size: 21px; }
+  .ev .dif.bien { color: var(--ok-texto); }
+  .ev .dif.mal { color: var(--mal-texto); }
   .gasto-form { border-top: 4px dotted #5a3a26; padding-top: 14px; margin-bottom: 8px; }
   .gasto-form input[type=file] { font-size: 20px; padding: 8px; }
   .ev .monto { font: 12px/1.6 var(--pixel); color: var(--acento); white-space: nowrap; }
@@ -198,6 +205,24 @@
           <div id="k-saldo-caja"><b id="k-saldo">$0</b><span>queda</span></div>
         </div>
         <p class="info" id="k-info"></p>
+        <div class="costo">
+          <div class="barra">
+            <label for="k-base" class="sr">Repartir gastos por</label>
+            <select id="k-base">
+              <option value="comprados">Por choris comprados</option>
+              <option value="retirados">Por choris retirados</option>
+            </select>
+          </div>
+          <div class="totales caja">
+            <div id="k-costo-caja"><b id="k-costo">-</b><span>costo real por chori</span></div>
+          </div>
+          <p class="info" id="k-costo-info"></p>
+          <details class="por-persona" id="k-detalle">
+            <summary>Cuánto debería pagar cada uno</summary>
+            <p class="info" id="k-pp-info"></p>
+            <div id="l-por-persona"></div>
+          </details>
+        </div>
         <form id="f-gasto" class="gasto-form" autocomplete="off">
           <label for="g-desc">Nuevo gasto</label>
           <input id="g-desc" required maxlength="120" placeholder="Ej.: 10 kg de carbón">
@@ -482,6 +507,8 @@ async function cargarCaja() {
   $("k-saldo-caja").className = datos.saldo < 0 ? "saldo-mal" : "saldo-ok";
   $("k-info").textContent = `Recaudado: ${datos.choris} chori${datos.choris === 1 ? "" : "s"} pagados por adelantado × ${pesos(datos.precio)}.`
     + (datos.gastos.length ? ` ${datos.gastos.length} gasto${datos.gastos.length === 1 ? "" : "s"} cargado${datos.gastos.length === 1 ? "" : "s"}.` : "");
+  ultimaCaja = datos;
+  pintarCosto();
   const lista = $("l-gastos");
   lista.innerHTML = "";
   if (!datos.gastos.length) lista.innerHTML = `<p class="info">Todavía no hay gastos cargados.</p>`;
@@ -529,6 +556,70 @@ async function cargarCaja() {
     lista.appendChild(fila);
   }
 }
+
+let ultimaCaja = null;
+
+// Costo real por chori = gastos / choris (comprados o retirados, según el selector).
+// Cada persona "debería" pagar sus choris de esa base × costo real; se compara con lo que pagó de antemano.
+function pintarCosto() {
+  const datos = ultimaCaja;
+  if (!datos) return;
+  const retirados = $("k-base").value === "retirados";
+  const base = retirados ? personas.reduce((a, p) => a + p.total - p.restantes, 0) : datos.choris;
+  const plural = (n, s) => `${n} ${s}${n === 1 ? "" : "s"}`;
+  const lista = $("l-por-persona");
+  lista.innerHTML = "";
+  $("k-pp-info").textContent = "";
+  if (!datos.gastado || !base) {
+    $("k-costo").textContent = "-";
+    $("k-costo-caja").className = "";
+    $("k-costo-info").textContent = !datos.gastado ? "Cargue gastos para calcular el costo real."
+      : retirados ? "Todavía no se retiró ningún chori." : "No hay choris vendidos.";
+    return;
+  }
+  const costo = datos.gastado / base;
+  const dif = datos.precio - costo;
+  $("k-costo").textContent = pesos(Math.round(costo));
+  $("k-costo-caja").className = dif >= 0 ? "saldo-ok" : "saldo-mal";
+  $("k-costo-info").textContent = `${pesos(datos.gastado)} de gastos ÷ ${(base === 1 ? `1 chori ${retirados ? "retirado" : "comprado"}` : `${base} choris ${retirados ? "retirados" : "comprados"}`)}. `
+    + (Math.round(dif) === 0 ? `Igual a los ${pesos(datos.precio)} que se cobraron.`
+      : dif > 0 ? `Se cobraron ${pesos(datos.precio)}: sobran ${pesos(Math.round(dif))} por chori.`
+      : `Se cobraron ${pesos(datos.precio)}: faltan ${pesos(Math.round(-dif))} por chori.`);
+  const filas = personas
+    .map((p) => ({ p, n: retirados ? p.total - p.restantes : p.total }))
+    .filter((f) => f.p.total > 0 || f.n > 0);
+  let aDevolver = 0, aCobrar = 0;
+  for (const { p, n } of filas) {
+    const pago = p.total * datos.precio;
+    const real = Math.round(n * costo);
+    const diferencia = pago - real;
+    if (diferencia > 0) aDevolver += diferencia; else aCobrar -= diferencia;
+    const fila = document.createElement("div");
+    fila.className = "ev";
+    const arriba = document.createElement("div");
+    arriba.className = "arriba";
+    const det = document.createElement("span");
+    det.textContent = retirados ? `retiró ${n} de ${p.total} · pagó ${pesos(pago)}` : `${plural(n, "chori")} · pagó ${pesos(pago)}`;
+    const monto = document.createElement("span");
+    monto.className = "monto";
+    monto.textContent = pesos(real);
+    arriba.append(det, monto);
+    const quien = document.createElement("div");
+    quien.className = "quien";
+    quien.textContent = p.nombre;
+    const res = document.createElement("div");
+    res.className = "dif " + (diferencia >= 0 ? "bien" : "mal");
+    res.textContent = diferencia === 0 ? "Pagó justo." : diferencia > 0 ? `Le sobran ${pesos(diferencia)}` : `Le faltan ${pesos(-diferencia)}`;
+    fila.append(arriba, quien, res);
+    lista.appendChild(fila);
+  }
+  $("k-pp-info").textContent = `${plural(filas.length, "persona")}. En total: devolver ${pesos(aDevolver)}`
+    + (aCobrar ? `, cobrar ${pesos(aCobrar)}` : "") + ". La cifra de la derecha es lo que le habría correspondido pagar."
+    + (!retirados && datos.choris > personas.reduce((a, p) => a + p.total, 0)
+      ? " Los choris donados que nadie tomó entran en el costo, pero no se le asignan a nadie." : "");
+}
+
+$("k-base").addEventListener("change", pintarCosto);
 
 $("caja").addEventListener("toggle", () => { if ($("caja").open) cargarCaja(); });
 
