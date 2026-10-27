@@ -64,7 +64,7 @@ evento: bebidas, entradas a un buffet, kits, etc.
 - Caja: lo recaudado (choris pagados por adelantado × `PRECIO_CHORI`), los gastos
   de la organización y lo que queda. Cada gasto lleva descripción, monto, quién
   lo pagó (opcional) y el ticket en foto o PDF (opcional, se puede adjuntar después).
-  Calcula el costo real por chori (gastos ÷ choris comprados o retirados) y cuánto
+  Calcula el costo real por chori (gastos ÷ choris vendidos) y cuánto
   le habría correspondido pagar a cada persona, con lo que le sobra o le falta.
 - Entregas: quién retiró cada chori, a qué hora y desde qué celular, con filtro
   por nombre o DNI. Las entregas deshechas también quedan registradas.
